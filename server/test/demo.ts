@@ -67,6 +67,30 @@ const moodle = new FauxMoodle();
 moodle.identifiant = 'demo';
 moodle.motDePasse = 'demo';
 moodle.cours = coursFaux();
+// Un cours plus fourni, rangé comme le font souvent les profs, pour montrer le tri par type.
+moodle.cours.push({
+  id: 4286, fullname: 'Signaux Analogiques et Numériques (S5) * 26_27_3ETI_05_MSP_103_C', shortname: '26_27_3ETI_05_MSP_103_C', categoryname: '3ETI_05_MSP',
+  sections: [
+    { nom: 'Semaine 1', elements: [
+      { id: 20, nom: 'Documents', type: 'folder', fichiers: [
+        { nom: 'Chapitre1_Fourier.pdf', contenu: '%PDF-1.4 a', modifie: 1_790_000_000 },
+        { nom: 'td1_enonce.pdf', contenu: '%PDF-1.4 b', modifie: 1_790_000_000 },
+        { nom: 'td1_correction.pdf', contenu: '%PDF-1.4 c', modifie: 1_790_000_000 },
+      ] },
+    ] },
+    { nom: 'Semaine 2', elements: [
+      { id: 21, nom: 'Slides cours 2', type: 'resource', fichiers: [{ nom: 'cours2.pdf', contenu: '%PDF-1.4 d', modifie: 1_790_000_000 }] },
+      { id: 22, nom: 'TP filtrage', type: 'resource', fichiers: [{ nom: 'TP2-filtrage.pdf', contenu: '%PDF-1.4 e', modifie: 1_790_000_000 }] },
+    ] },
+    { nom: 'Préparer le partiel', elements: [
+      { id: 23, nom: 'Annales', type: 'folder', fichiers: [
+        { nom: 'partiel_2024.pdf', contenu: '%PDF-1.4 f', modifie: 1_790_000_000 },
+        { nom: 'partiel_2024_corrige.pdf', contenu: '%PDF-1.4 g', modifie: 1_790_000_000 },
+      ] },
+      { id: 24, nom: 'Questions sur le cours', type: 'forum' },
+    ] },
+  ],
+});
 const adressesMoodle = await moodle.demarrer();
 
 const coffre = new Coffre(randomBytes(32));

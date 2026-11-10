@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'preact/hooks';
 import type { Cours, Donnees, ElementCours, Fichier } from '../types';
-import { correspond, fichiersDe, nomCourt, poleDe, semestreDe, sigle, taille, typeFichier } from '../cours';
+import { correspond, fichiersDe, nomCourt, parType, poleDe, semestreDe, sigle, taille, typeFichier } from '../cours';
+import { affichageCours, choisirAffichage, type Affichage } from '../api';
 import { ilYA } from '../dates';
 import { Entete, Icone, Segments, Vide, type NomIcone } from '../composants';
 
@@ -143,8 +144,15 @@ function LigneFichier({ f, sous, nouveau }: { f: Fichier; sous?: string; nouveau
   );
 }
 
+const AFFICHAGES = [{ id: 'type', nom: 'Par type' }, { id: 'prof', nom: 'Rangement du prof' }] as const;
+
 function DetailCours({ c, vus, surRetour }: { c: Cours; vus: Set<string> | null; surRetour: () => void }) {
   const pole = poleDe(c);
+  const [affichage, setAffichage] = useState<Affichage>(() => affichageCours(c.id));
+  const changer = (a: Affichage) => { setAffichage(a); choisirAffichage(c.id, a); };
+  const liens = c.sections.flatMap((s) => s.elements.filter((e) => !e.fichiers.length));
+  const aDesFichiers = c.sections.some((s) => s.elements.some((e) => e.fichiers.length));
+
   return (
     <>
       <button type="button" class="retour" onClick={surRetour}><Icone nom="gauche" epaisseur={2.4} />Cours</button>
@@ -155,16 +163,40 @@ function DetailCours({ c, vus, surRetour }: { c: Cours; vus: Set<string> | null;
           <span class="pastille c-neutre">{semestreDe(c)} · {pole.nom}</span>
         </div>
       </header>
-      {c.sections.map((s) => (
-        <section class="bloc">
-          <h2 class="titre-groupe">{s.nom}</h2>
-          <div class="carte liste">
-            {s.elements.map((e) => e.fichiers.length
-              ? e.fichiers.map((f) => <LigneFichier f={f} sous={e.type === 'folder' ? [...new Set([e.nom, f.dossier].filter(Boolean))].join(' / ') : undefined} nouveau={estNouveau(f, vus)} />)
-              : <LigneElement e={e} />)}
-          </div>
-        </section>
-      ))}
+      {aDesFichiers && <Segments options={AFFICHAGES} valeur={affichage} surChoix={changer} etiquette="Affichage des fichiers" />}
+
+      {affichage === 'type' && aDesFichiers ? (
+        <>
+          {parType(c).map(({ type, fichiers }) => (
+            <section class="bloc">
+              <h2 class="titre-groupe">{type.nom} <span class="compte">{fichiers.length}</span></h2>
+              <div class="carte liste">
+                {fichiers.map(({ f, element, section }) => (
+                  <LigneFichier f={f} sous={[...new Set([section, element, f.dossier].filter(Boolean))].join(' / ')} nouveau={estNouveau(f, vus)} />
+                ))}
+              </div>
+            </section>
+          ))}
+          {liens.length > 0 && (
+            <section class="bloc">
+              <h2 class="titre-groupe">Sur e-campus</h2>
+              <div class="carte liste">{liens.map((e) => <LigneElement e={e} />)}</div>
+            </section>
+          )}
+          <p class="petit-texte">Rangement deviné d'après le nom des fichiers et des sections. Pour retrouver l'organisation du prof, choisis « Rangement du prof ».</p>
+        </>
+      ) : (
+        c.sections.map((s) => (
+          <section class="bloc">
+            <h2 class="titre-groupe">{s.nom}</h2>
+            <div class="carte liste">
+              {s.elements.map((e) => e.fichiers.length
+                ? e.fichiers.map((f) => <LigneFichier f={f} sous={e.type === 'folder' ? [...new Set([e.nom, f.dossier].filter(Boolean))].join(' / ') : undefined} nouveau={estNouveau(f, vus)} />)
+                : <LigneElement e={e} />)}
+            </div>
+          </section>
+        ))
+      )}
       {!c.sections.length && <Vide icone="livre" titre="Ce cours est vide pour l'instant" />}
     </>
   );

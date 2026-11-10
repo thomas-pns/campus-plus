@@ -263,3 +263,4 @@ h1 { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.
 .entete-cours h1 { font-size: 26px; }
 .pastilles { display: flex; flex-wrap: wrap; gap: 8px; }
 .rangee .rangee-texte strong { overflow-wrap: anywhere; }
+.titre-groupe .compte { color: #9AA2B1; margin-left: 4px; }

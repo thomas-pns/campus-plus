@@ -171,3 +171,23 @@ export async function desactiverNotifications(): Promise<EtatAppareil> {
   }
   return 'inactives';
 }
+
+/* ---------- Affichage choisi pour chaque cours ---------- */
+
+const CLE_AFFICHAGE = 'campus-plus:affichage-cours';
+export type Affichage = 'type' | 'prof';
+
+export function affichageCours(id: number): Affichage {
+  try {
+    return (JSON.parse(localStorage.getItem(CLE_AFFICHAGE) ?? '{}') as Record<string, Affichage>)[id] ?? 'type';
+  } catch {
+    return 'type';
+  }
+}
+
+export function choisirAffichage(id: number, a: Affichage): void {
+  try {
+    const tout = JSON.parse(localStorage.getItem(CLE_AFFICHAGE) ?? '{}') as Record<string, Affichage>;
+    localStorage.setItem(CLE_AFFICHAGE, JSON.stringify({ ...tout, [id]: a }));
+  } catch { /* rien à faire */ }
+}

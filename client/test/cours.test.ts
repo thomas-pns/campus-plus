@@ -36,3 +36,47 @@ describe('cours', () => {
     expect(correspond('Algèbre linéaire · Poly', 'algebre td')).toBe(false);
   });
 });
+
+import { classer, parType } from '../src/cours';
+import type { Fichier } from '../src/types';
+
+const f = (nom: string, dossier = ''): Fichier => ({ cle: nom, nom, dossier, taille: 1, modifie: 0, type: '' });
+
+describe('tri par type', () => {
+  it('lit le nom du fichier en premier', () => {
+    expect(classer(f('td3.pdf'), 'Documents', 'Cours')).toBe('td');
+    expect(classer(f('TD_3_correction.pdf'), 'TD', 'TD')).toBe('corriges');
+    expect(classer(f('Corrigé TD2.pdf'), 'TD', 'TD')).toBe('corriges');
+    expect(classer(f('Sujet_partiel_2024.pdf'), 'x', 'y')).toBe('annales');
+    expect(classer(f('DS1-2023.pdf'), 'x', 'y')).toBe('annales');
+    expect(classer(f('partiel_2024_corrige.pdf'), 'x', 'y')).toBe('annales'); // avec son sujet
+    expect(classer(f('TP2-filtrage.pdf'), 'x', 'y')).toBe('tp');
+    expect(classer(f('Chapitre 4 - diagonalisation.pdf'), 'x', 'y')).toBe('cours');
+    expect(classer(f('poly-algebre.pdf'), 'x', 'y')).toBe('cours');
+    expect(classer(f('Exercices supplémentaires.pdf'), 'x', 'y')).toBe('td');
+  });
+
+  it('se rabat sur l’élément, puis la section', () => {
+    expect(classer(f('doc_final_v2.pdf'), 'TD 4', 'Semaine 3')).toBe('td');
+    expect(classer(f('partie3.pdf'), 'Documents', 'Annales des années précédentes')).toBe('annales');
+    expect(classer(f('img001.pdf'), 'Ressource', 'Généralités')).toBe('autres');
+  });
+
+  it('ne se trompe pas sur des mots qui contiennent les sigles', () => {
+    expect(classer(f('studio.pdf'), 'x', 'y')).toBe('autres'); // « td » dans « studio »
+    expect(classer(f('optique.pdf'), 'x', 'y')).toBe('autres'); // « tp » dans « optique »
+    expect(classer(f('dessin.pdf'), 'x', 'y')).toBe('autres'); // « ds » dans « dessin »
+  });
+
+  it('regroupe un cours par type, dans l’ordre, en triant les noms naturellement', () => {
+    const c = { id: 1, nom: 'X', code: '', categorie: '', sections: [
+      { nom: 'Cours', elements: [{ id: 1, nom: 'Poly', type: 'resource', lien: '', fichiers: [f('poly.pdf')] }] },
+      { nom: 'TD', elements: [{ id: 2, nom: 'TD', type: 'folder', lien: '', fichiers: [f('td10.pdf'), f('td2.pdf'), f('correction td2.pdf')] }] },
+    ] };
+    expect(parType(c).map((g) => [g.type.id, g.fichiers.map((x) => x.f.nom)])).toEqual([
+      ['cours', ['poly.pdf']],
+      ['td', ['td2.pdf', 'td10.pdf']],
+      ['corriges', ['correction td2.pdf']],
+    ]);
+  });
+});
