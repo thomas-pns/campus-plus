@@ -201,7 +201,7 @@ export function choisirAffichage(id: number, a: Affichage): void {
 /* ---------- À faire ---------- */
 
 export const lireAFaire = () => appel<{ echeances: Echeance[]; taches: Tache[] }>('GET', '/api/afaire');
-export const ajouterTache = (t: { titre: string; echeance: string | null }) => appel<{ tache: Tache }>('POST', '/api/taches', t);
+export const ajouterTache = (t: { titre: string; echeance: string | null; cours?: number | null; matiere?: string | null }) => appel<{ tache: Tache }>('POST', '/api/taches', t);
 export const changerTache = (id: string, champs: Partial<Pick<Tache, 'titre' | 'echeance' | 'fait'>>) => appel<{ tache: Tache }>('PATCH', `/api/taches/${id}`, champs);
 export const supprimerTache = (id: string) => appel<{ ok: true }>('DELETE', `/api/taches/${id}`);
 export const marquerEcheance = (id: number, fait: boolean) => appel<{ echeancesFaites: number[] }>('PUT', `/api/echeances/${id}/fait`, { fait });

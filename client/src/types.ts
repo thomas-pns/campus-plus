@@ -126,6 +126,7 @@ export interface Tache {
   /** « AAAA-MM-JJ » ou null. */
   echeance: string | null;
   cours: number | null;
+  matiere?: string | null;
   fait: boolean;
   creeLe: string;
 }

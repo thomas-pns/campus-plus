@@ -12,6 +12,8 @@ export interface Tache {
   echeance: string | null;
   /** Cours e-campus associé, facultatif. */
   cours: number | null;
+  /** Matière affichée (« Algèbre linéaire »), facultative. */
+  matiere: string | null;
   fait: boolean;
   creeLe: string;
 }
@@ -46,12 +48,12 @@ export class Taches {
     return suite.finally(() => { if (this.verrous.get(id) === suite) this.verrous.delete(id); });
   }
 
-  ajouter(id: string, t: { titre: string; echeance?: string | null; cours?: number | null }): Promise<Tache> {
+  ajouter(id: string, t: { titre: string; echeance?: string | null; cours?: number | null; matiere?: string | null }): Promise<Tache> {
     return this.modifier(id, (d) => {
       if (d.taches.length >= MAX_TACHES) throw Object.assign(new Error('Trop de tâches'), { statusCode: 400 });
       const tache: Tache = {
         id: randomBytes(8).toString('hex'), titre: t.titre.trim(), echeance: t.echeance ?? null,
-        cours: t.cours ?? null, fait: false, creeLe: this.maintenant().toISOString(),
+        cours: t.cours ?? null, matiere: t.matiere?.trim() || null, fait: false, creeLe: this.maintenant().toISOString(),
       };
       return { d: { ...d, taches: [...d.taches, tache] }, r: tache };
     });

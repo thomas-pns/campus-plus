@@ -113,7 +113,10 @@ describe('devoirs e-campus et tâches perso de bout en bout', () => {
 
   it('ajoute, coche, modifie et supprime une tâche perso', async () => {
     const { tache } = (await req('POST', '/api/taches', { titre: '  Relire le chapitre 4  ', echeance: '2026-11-15' })).json();
-    expect(tache).toMatchObject({ titre: 'Relire le chapitre 4', echeance: '2026-11-15', fait: false, cours: null });
+    expect(tache).toMatchObject({ titre: 'Relire le chapitre 4', echeance: '2026-11-15', fait: false, cours: null, matiere: null });
+    const lie = (await req('POST', '/api/taches', { titre: 'Exos 10 à 16', echeance: '2026-11-12', cours: 4280, matiere: ' Algèbre linéaire ' })).json().tache;
+    expect(lie).toMatchObject({ cours: 4280, matiere: 'Algèbre linéaire' });
+    await req('DELETE', `/api/taches/${lie.id}`);
     expect((await req('PATCH', `/api/taches/${tache.id}`, { fait: true })).json().tache.fait).toBe(true);
     expect((await req('PATCH', `/api/taches/${tache.id}`, { echeance: null })).json().tache.echeance).toBeNull();
     expect((await req('GET', '/api/afaire')).json().taches).toHaveLength(1);

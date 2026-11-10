@@ -27,7 +27,7 @@ export function lignes(echeances: Echeance[], taches: Tache[], maintenant: numbe
     enRetard: !e.fait && e.date * 1000 < maintenant, source: { type: 'echeance', e },
   }));
   const b = taches.map((t): Ligne => ({
-    cle: `t${t.id}`, titre: t.titre, sous: 'Ajouté par toi', jour: t.echeance, heure: null, fait: t.fait,
+    cle: `t${t.id}`, titre: t.titre, sous: t.matiere || 'Ajouté par toi', jour: t.echeance, heure: null, fait: t.fait,
     enRetard: !t.fait && !!t.echeance && t.echeance < aujourdhui, source: { type: 'tache', t },
   }));
   return [...a, ...b].sort((x, y) => (x.jour ?? '9999').localeCompare(y.jour ?? '9999') || (x.heure ?? '').localeCompare(y.heure ?? '') || x.titre.localeCompare(y.titre));
@@ -60,4 +60,12 @@ export function grouper(liste: Ligne[], maintenant: number): [Groupe, Ligne[]][]
 export function aVenir(liste: Ligne[], maintenant: number): Ligne[] {
   const limite = ajouterJours(jourParis(maintenant), 7);
   return liste.filter((l) => !l.fait && (l.enRetard || (l.jour !== null && l.jour <= limite))).slice(0, 3);
+}
+
+const simple = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s*\(s\d+\)\s*$/, '').trim();
+
+/** Même matière dans le planning (« Algèbre linéaire ») et sur e-campus (« Algèbre linéaire (S5) ») ? */
+export function memeMatiere(a: string, b: string): boolean {
+  const x = simple(a), y = simple(b);
+  return !!x && !!y && (x === y || x.startsWith(y) || y.startsWith(x));
 }

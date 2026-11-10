@@ -12,7 +12,11 @@ import { Connexion } from './ecrans/connexion';
 import { CoursEcran } from './ecrans/cours';
 import { fichiersDe } from './cours';
 import { Devoirs, basculer } from './ecrans/devoirs';
-import type { Ligne } from './afaire';
+import { memeMatiere, type Ligne } from './afaire';
+import { AjoutDevoir, type Brouillon } from './ecrans/ajout-devoir';
+import { nomCourt } from './cours';
+import { jourDe } from './dates';
+import type { Cours } from './types';
 
 const ONGLETS = [
   { id: 'aujourdhui', nom: "Aujourd'hui", icone: 'soleil' },
@@ -48,6 +52,7 @@ export function App() {
   const reglages = page === 'reglages';
   const setReglages = (oui: boolean) => setPage(oui ? 'reglages' : null);
   const [fiche, setFiche] = useState<Evenement | null>(null);
+  const [brouillon, setBrouillon] = useState<Brouillon | null>(null);
   const [vuesJusqua, setVuesJusqua] = useState(api.alertesVuesJusqua);
   const [coursOuvert, setCoursOuvert] = useState<number | null>(null);
   const [fichiersVus, setFichiersVus] = useState(api.fichiersVus);
@@ -105,6 +110,27 @@ export function App() {
       return nouveau;
     });
   };
+  /** Prochaine séance d'une matière (à partir de demain), pour proposer une date au devoir. */
+  const prochaineSeance = (matiere: string, apres: number) =>
+    donnees?.planning
+      .filter((e) => memeMatiere(e.matiere, matiere) && Date.parse(e.debut) > apres && !['examen'].includes(e.categorie))
+      .sort((a, b) => a.debut.localeCompare(b.debut))[0];
+
+  const devoirDepuisCreneau = (e: Evenement) => {
+    setFiche(null);
+    // Un devoir donné pendant ce créneau est en général pour la séance suivante de la matière.
+    const suivante = prochaineSeance(e.matiere, Date.parse(e.fin));
+    const cours = donnees?.cours?.find((c) => memeMatiere(nomCourt(c), e.matiere));
+    setBrouillon({ matiere: e.matiere, cours: cours?.id ?? null, date: suivante ? jourDe(suivante.debut) : jourDe(e.debut) });
+  };
+
+  const devoirDepuisCours = (c: Cours) => {
+    const suivante = prochaineSeance(nomCourt(c), Date.now());
+    setBrouillon({ matiere: nomCourt(c), cours: c.id, date: suivante ? jourDe(suivante.debut) : '' });
+  };
+
+  const fermerBrouillon = useCallback(() => setBrouillon(null), []);
+
   const cocher = (l: Ligne) => {
     if (donnees?.afaire) void basculer(l, donnees.afaire).then(changerAFaire).catch(() => undefined);
   };
@@ -189,7 +215,7 @@ export function App() {
         ) : onglet === 'planning' ? (
           <Planning d={d} maintenant={maintenant} surOuvrir={setFiche} />
         ) : onglet === 'cours' ? (
-          <CoursEcran d={d} maintenant={maintenant} vus={fichiersVus} coursOuvert={coursOuvert} surOuvrirCours={setCoursOuvert} />
+          <CoursEcran d={d} maintenant={maintenant} vus={fichiersVus} coursOuvert={coursOuvert} surOuvrirCours={setCoursOuvert} surAjouterDevoir={devoirDepuisCours} />
         ) : onglet === 'alertes' ? (
           <Alertes d={d} maintenant={maintenant} vuesJusqua={vuesJusqua} surOuvrir={setFiche} surAller={choisir} surOuvrirCours={ouvrirCours}
             surDevoirs={() => { setOnglet('aujourdhui'); setPage('devoirs'); }} />
@@ -210,7 +236,11 @@ export function App() {
         ))}
       </nav>
 
-      {fiche && <FicheEvenement e={fiche} surFermer={fermerFiche} />}
+      {fiche && <FicheEvenement e={fiche} surFermer={fermerFiche} surAjouterDevoir={d.afaire && !horsLigne ? devoirDepuisCreneau : undefined} />}
+      {brouillon && d.afaire && (
+        <AjoutDevoir b={brouillon} surFermer={fermerBrouillon}
+          surAjout={(t) => { changerAFaire({ ...d.afaire!, taches: [...d.afaire!.taches, t] }); setBrouillon(null); }} />
+      )}
     </>
   );
 }

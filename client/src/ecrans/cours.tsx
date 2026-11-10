@@ -12,12 +12,13 @@ interface Props {
   vus: Set<string> | null;
   coursOuvert: number | null;
   surOuvrirCours: (id: number | null) => void;
+  surAjouterDevoir: (c: Cours) => void;
 }
 
-export function CoursEcran({ d, maintenant, vus, coursOuvert, surOuvrirCours }: Props) {
+export function CoursEcran({ d, maintenant, vus, coursOuvert, surOuvrirCours, surAjouterDevoir }: Props) {
   const cours = d.cours ?? [];
   const ouvert = coursOuvert !== null ? cours.find((c) => c.id === coursOuvert) : undefined;
-  if (ouvert) return <DetailCours c={ouvert} vus={vus} surRetour={() => surOuvrirCours(null)} />;
+  if (ouvert) return <DetailCours c={ouvert} vus={vus} surRetour={() => surOuvrirCours(null)} surAjouterDevoir={() => surAjouterDevoir(ouvert)} />;
   return <ListeCours d={d} maintenant={maintenant} vus={vus} surOuvrirCours={surOuvrirCours} />;
 }
 
@@ -146,7 +147,7 @@ function LigneFichier({ f, sous, nouveau }: { f: Fichier; sous?: string; nouveau
 
 const AFFICHAGES = [{ id: 'type', nom: 'Par type' }, { id: 'prof', nom: 'Rangement du prof' }] as const;
 
-function DetailCours({ c, vus, surRetour }: { c: Cours; vus: Set<string> | null; surRetour: () => void }) {
+function DetailCours({ c, vus, surRetour, surAjouterDevoir }: { c: Cours; vus: Set<string> | null; surRetour: () => void; surAjouterDevoir: () => void }) {
   const pole = poleDe(c);
   const [affichage, setAffichage] = useState<Affichage>(() => affichageCours(c.id));
   const changer = (a: Affichage) => { setAffichage(a); choisirAffichage(c.id, a); };
@@ -162,6 +163,9 @@ function DetailCours({ c, vus, surRetour }: { c: Cours; vus: Set<string> | null;
         <div class="pastilles">
           <span class="pastille c-neutre">{semestreDe(c)} · {pole.nom}</span>
         </div>
+        <button type="button" class="bouton secondaire petit" onClick={surAjouterDevoir}>
+          <Icone nom="plus" taille={16} epaisseur={2.6} />&nbsp;Devoir pour ce cours
+        </button>
       </header>
       {aDesFichiers && <Segments options={AFFICHAGES} valeur={affichage} surChoix={changer} etiquette="Affichage des fichiers" />}
 

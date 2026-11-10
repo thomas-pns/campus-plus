@@ -259,8 +259,9 @@ export async function creerApp(s: Services): Promise<FastifyInstance> {
       onRequest: exigerSession,
       schema: { body: { type: 'object', required: ['titre'], additionalProperties: false, properties: {
         titre: { type: 'string', minLength: 1, maxLength: 200 }, echeance: JOUR, cours: { type: ['integer', 'null'] },
+        matiere: { type: ['string', 'null'], maxLength: 120 },
       } } },
-    }, async (req) => ({ tache: await taches.ajouter(req.compte!.id, req.body as { titre: string; echeance?: string | null; cours?: number | null }) }));
+    }, async (req) => ({ tache: await taches.ajouter(req.compte!.id, req.body as { titre: string; echeance?: string | null; cours?: number | null; matiere?: string | null }) }));
 
     app.patch('/api/taches/:tache', {
       onRequest: exigerSession,

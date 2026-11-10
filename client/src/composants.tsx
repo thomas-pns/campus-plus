@@ -99,7 +99,7 @@ export function LigneEvenement({ e, passe, surOuvrir }: { e: Evenement; passe?: 
 
 /* ---------- Fiche d'un créneau (panneau qui monte du bas) ---------- */
 
-export function FicheEvenement({ e, surFermer }: { e: Evenement; surFermer: () => void }) {
+export function FicheEvenement({ e, surFermer, surAjouterDevoir }: { e: Evenement; surFermer: () => void; surAjouterDevoir?: (e: Evenement) => void }) {
   const cat = CATEGORIES[e.categorie];
   const fermer = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -133,6 +133,11 @@ export function FicheEvenement({ e, surFermer }: { e: Evenement; surFermer: () =
           <div class="remarques">
             {e.remarques.map((r) => <p>{r}</p>)}
           </div>
+        )}
+        {surAjouterDevoir && e.matiere && !['autonomie', 'reunion', 'evenement', 'presentation'].includes(e.categorie) && (
+          <button type="button" class="bouton secondaire large" onClick={() => surAjouterDevoir(e)}>
+            <Icone nom="plus" taille={18} epaisseur={2.6} />&nbsp;Devoir pour ce cours
+          </button>
         )}
       </section>
     </div>

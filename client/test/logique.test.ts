@@ -144,3 +144,14 @@ describe('à faire', () => {
     expect(aVenir(liste, maintenant).map((l) => l.titre)).toEqual(['Exos S44', 'QCM', 'Relire chap. 4']);
   });
 });
+
+import { memeMatiere } from '../src/afaire';
+describe('matières', () => {
+  it('rapproche le planning et e-campus', () => {
+    expect(memeMatiere('Algèbre linéaire', 'Algèbre linéaire (S5)')).toBe(true);
+    expect(memeMatiere('Signaux Analogiques et Numériques', 'Signaux analogiques et numériques (S5)')).toBe(true);
+    expect(memeMatiere('Techniques et Langages du WEB', 'Techniques et Langages du Web (S5)')).toBe(true);
+    expect(memeMatiere('Algèbre linéaire', 'Analyse numérique (S5)')).toBe(false);
+    expect(memeMatiere('', 'Analyse')).toBe(false);
+  });
+});
