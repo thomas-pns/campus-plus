@@ -94,7 +94,8 @@ export class FauxMoodle {
       if (!this.jetons.has(corps.get('wstoken') ?? '')) return json({ exception: 'moodle_exception', errorcode: 'invalidtoken', message: 'Invalid token' });
       switch (corps.get('wsfunction')) {
         case 'core_webservice_get_site_info': return json({ userid: 42, sitename: 'Faux e-campus' });
-        case 'core_enrol_get_users_courses': return json(this.cours.map(({ sections: _, ...c }) => ({ ...c, visible: 1, hidden: false })));
+        // Comme le vrai e-campus : pas de nom de catégorie dans cette réponse (seulement un numéro).
+        case 'core_enrol_get_users_courses': return json(this.cours.map(({ sections: _, categoryname: __, ...c }) => ({ ...c, category: 12, visible: 1, hidden: false })));
         case 'core_course_get_contents': {
           const c = this.cours.find((x) => x.id === Number(corps.get('courseid')));
           if (!c) return json({ exception: 'moodle_exception', errorcode: 'invalidrecord', message: 'Cours introuvable' });

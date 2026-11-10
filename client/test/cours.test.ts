@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { correspond, nomCourt, poleDe, semestreDe, sigle, taille, typeFichier } from '../src/cours';
+import { correspond, nomCourt, poleDe, semestreDe, sigle, taille, trierSemestres, typeFichier } from '../src/cours';
 import type { Cours } from '../src/types';
 
 const cours = (nom: string, code: string, categorie: string): Cours => ({ id: 1, nom, code, categorie, sections: [] });
@@ -11,8 +11,22 @@ describe('cours', () => {
     expect(nomCourt(c)).toBe('Algèbre linéaire');
     expect(poleDe(c).nom).toBe('Maths & signal');
     expect(semestreDe(cours('Optique (S6)', 'x', ''))).toBe('S6');
-    expect(semestreDe(cours('Guide LOGICIELS', 'Guide LOGICIELS', 'Espaces ETUDIANTS'))).toBe('Autres');
+    expect(semestreDe(cours('Guide LOGICIELS', 'Guide LOGICIELS', 'Espaces ETUDIANTS'))).toBe('Ressources');
     expect(poleDe(cours('Guide', 'g', 'Espaces ETUDIANTS')).nom).toBe('Autres ressources');
+  });
+
+  it('lit le pôle dans le code quand la catégorie manque (cas réel de l’API e-campus)', () => {
+    expect(poleDe(cours('Algèbre linéaire (S5)', '26_27_3ETI_05_MSP_101_C', '')).nom).toBe('Maths & signal');
+    expect(poleDe(cours('Logique Numérique (S5)', '26_27_3ETI_05_ELPH_001_C', '')).nom).toBe('Électronique & physique');
+    expect(poleDe(cours('Python (S5)', '26_27_3ETI_05_COMSC_109_C', '')).nom).toBe('Informatique');
+    expect(poleDe(cours('Anglais (S5)', '26_27_3ETI_05_L_100_C', '')).nom).toBe('Langues');
+    expect(poleDe(cours('Formation Humaine (S5)', '26_27_3ETI_05_ESS_001_C', '')).nom).toBe('Formation humaine');
+    expect(poleDe(cours("Stage d'exécution (S6)", '26_27_3ETI_06S_IP_001_C', '')).nom).toBe('Stages');
+    expect(semestreDe(cours("Stage d'exécution", '26_27_3ETI_06S_IP_001_C', ''))).toBe('S6');
+  });
+
+  it('range les semestres dans l’ordre, ressources à la fin', () => {
+    expect(trierSemestres(['Ressources', 'S6', 'S5', 'S5'])).toEqual(['S5', 'S6', 'Ressources']);
   });
 
   it('fait des sigles lisibles', () => {

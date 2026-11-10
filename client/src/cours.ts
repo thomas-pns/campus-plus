@@ -3,8 +3,14 @@ import type { Cours, Fichier } from './types';
 
 /** Semestre lu dans le nom ou le code : « (S5) », « _05_ ». */
 export function semestreDe(c: Cours): string {
-  const m = c.nom.match(/\(S(\d+)\)/) ?? c.code.match(/_0?(\d+)_[A-Z]/);
-  return m ? `S${Number(m[1])}` : 'Autres';
+  const m = c.nom.match(/\(S(\d+)\)/) ?? c.code.match(/_0?(\d+)S?_[A-Z]+_\d+/);
+  return m ? `S${Number(m[1])}` : 'Ressources';
+}
+
+/** S5, S6… dans l'ordre, puis « Ressources » (guides, référentiels…) en dernier. */
+export function trierSemestres(liste: string[]): string[] {
+  const rang = (s: string) => (s.startsWith('S') ? Number(s.slice(1)) : 99);
+  return [...new Set(liste)].sort((a, b) => rang(a) - rang(b));
 }
 
 /** « Algèbre linéaire (S5) » → « Algèbre linéaire ». */
@@ -20,9 +26,14 @@ const POLES: Record<string, { nom: string; classe: string }> = {
   IP: { nom: 'Stages', classe: 'c-neutre' },
 };
 
+/**
+ * Pôle du cours. L'API e-campus ne donne pas toujours la catégorie (« 3ETI_05_MSP ») : on lit alors
+ * le code du cours (« 26_27_3ETI_05_MSP_101_C », « 26_27_3ETI_06S_IP_001_C »).
+ */
 export function poleDe(c: Cours): { nom: string; classe: string } {
-  const code = c.categorie.split('_').pop() ?? '';
-  return POLES[code] ?? { nom: 'Autres ressources', classe: 'c-neutre' };
+  const depuisCategorie = c.categorie.match(/_\d{2}S?_([A-Z]+)$/)?.[1];
+  const depuisCode = c.code.match(/_\d{2}S?_([A-Z]+)_\d+/)?.[1];
+  return POLES[depuisCategorie ?? depuisCode ?? ''] ?? { nom: 'Autres ressources', classe: 'c-neutre' };
 }
 
 /** Deux ou trois lettres pour la vignette du cours. */

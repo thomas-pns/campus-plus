@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'preact/hooks';
 import type { Cours, Donnees, ElementCours, Fichier } from '../types';
-import { correspond, fichiersDe, nomCourt, parType, poleDe, semestreDe, sigle, taille, typeFichier } from '../cours';
+import { correspond, fichiersDe, nomCourt, parType, poleDe, semestreDe, sigle, taille, trierSemestres, typeFichier } from '../cours';
 import { affichageCours, choisirAffichage, type Affichage } from '../api';
 import { ilYA } from '../dates';
 import { Entete, Icone, Segments, Vide, type NomIcone } from '../composants';
@@ -26,11 +26,12 @@ const estNouveau = (f: Fichier, vus: Set<string> | null) => vus !== null && !vus
 
 function ListeCours({ d, maintenant, vus, surOuvrirCours }: { d: Donnees; maintenant: number; vus: Set<string> | null; surOuvrirCours: (id: number) => void }) {
   const cours = d.cours ?? [];
-  const semestres = useMemo(() => [...new Set(cours.map(semestreDe))].sort(), [cours]);
+  const semestres = useMemo(() => trierSemestres(cours.map(semestreDe)), [cours]);
   // Par défaut, le semestre qui a le plus de fichiers récents, sinon le premier.
   const [semestre, setSemestre] = useState(() => {
-    const recents = semestres.map((s) => ({ s, n: cours.filter((c) => semestreDe(c) === s).flatMap(fichiersDe).filter((f) => f.modifie * 1000 > maintenant - 30 * 86_400_000).length }));
-    return recents.sort((a, b) => b.n - a.n)[0]?.s ?? 'S5';
+    const recents = semestres.filter((s) => s !== 'Ressources')
+      .map((s) => ({ s, n: cours.filter((c) => semestreDe(c) === s).flatMap(fichiersDe).filter((f) => f.modifie * 1000 > maintenant - 30 * 86_400_000).length }));
+    return recents.sort((a, b) => b.n - a.n)[0]?.s ?? semestres[0] ?? 'S5';
   });
   const [recherche, setRecherche] = useState('');
 
