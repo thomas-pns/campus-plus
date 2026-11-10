@@ -7,6 +7,7 @@ import type { Evenement } from './sources/planning.js';
 import { comparerNotes, comparerPlanning, type Alerte } from './alertes.js';
 import type { Comptes } from './comptes.js';
 import type { Depot } from './depot.js';
+import type { SynchroCours } from './cours.js';
 
 export interface Etat {
   /** Dernière synchro réussie. */
@@ -33,6 +34,8 @@ export interface OptionsSynchro {
   journal?: (message: string) => void;
   /** Appelé avec les alertes qui viennent d'apparaître (notifications). Une erreur ici n'interrompt pas la synchro. */
   surNouvellesAlertes?: (id: string, alertes: Alerte[]) => Promise<void>;
+  /** Synchro des cours e-campus, faite au même rythme, après celle de MyCPE. */
+  cours?: SynchroCours;
 }
 
 export class Synchro {
@@ -135,6 +138,8 @@ export class Synchro {
         const compte = await this.comptes.lire(id);
         if (!compte || compte.aReconnecter) continue;
         if (this.aSynchroniser(await this.etat(id))) await this.synchroniser(id);
+        const cours = this.options.cours;
+        if (cours && this.aSynchroniser(await cours.etat(id))) await cours.synchroniser(id);
       }
     } catch (e) {
       this.options.journal?.(`Tour de synchro interrompu : ${(e as Error).message}`);

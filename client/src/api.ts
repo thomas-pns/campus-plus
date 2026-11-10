@@ -1,5 +1,5 @@
 /** Appels au serveur Campus+ et copie des données sur l'appareil (pour l'affichage hors ligne). */
-import type { Absence, Alerte, Donnees, Etat, Evenement, Moi, MoyenneCours, Note } from './types';
+import type { Absence, Alerte, Cours, Donnees, Etat, EtatCours, Evenement, Moi, MoyenneCours, Note } from './types';
 
 export class ErreurApi extends Error {
   /** `code` : statut HTTP, ou 0 si le serveur est injoignable. */
@@ -32,12 +32,16 @@ export const supprimerCompte = () => appel<{ ok: true }>('DELETE', '/api/compte'
 export const synchroniser = () => appel<{ etat: Etat }>('POST', '/api/synchro');
 
 export async function chargerTout(): Promise<Donnees> {
-  const [moi, planning, notes, absences, alertes] = await Promise.all([
+  const [moi, planning, notes, absences, alertes, cours] = await Promise.all([
     appel<Moi>('GET', '/api/moi'),
     appel<{ evenements: Evenement[] }>('GET', '/api/planning'),
     appel<{ notes: Note[]; moyennes: MoyenneCours[] }>('GET', '/api/notes'),
     appel<{ absences: Absence[] }>('GET', '/api/absences'),
     appel<{ alertes: Alerte[] }>('GET', '/api/alertes'),
+    appel<{ cours: Cours[]; etat: EtatCours }>('GET', '/api/cours').catch((e) => {
+      if (e instanceof ErreurApi && e.code === 404) return null;
+      throw e;
+    }),
   ]);
   return {
     moi,
@@ -46,14 +50,33 @@ export async function chargerTout(): Promise<Donnees> {
     moyennes: notes.moyennes,
     absences: absences.absences,
     alertes: alertes.alertes,
+    cours: cours?.cours ?? null,
+    etatCours: cours?.etat ?? null,
     recuLe: Date.now(),
   };
 }
 
 /* ---------- Copie sur l'appareil ---------- */
 
-const CLE = 'campus-plus:donnees:v1';
+const CLE = 'campus-plus:donnees:v2';
 const CLE_ALERTES_VUES = 'campus-plus:alertes-vues';
+const CLE_COURS_VUS = 'campus-plus:fichiers-vus';
+
+/** Clés des fichiers déjà vus sur cet appareil (pour le badge « nouveau »). null : jamais ouvert l'onglet Cours. */
+export function fichiersVus(): Set<string> | null {
+  try {
+    const v = localStorage.getItem(CLE_COURS_VUS);
+    return v ? new Set(JSON.parse(v) as string[]) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function marquerFichiersVus(cles: string[]): void {
+  try {
+    localStorage.setItem(CLE_COURS_VUS, JSON.stringify(cles));
+  } catch { /* rien à faire */ }
+}
 
 export function lireCopie(): Donnees | null {
   try {
@@ -76,6 +99,8 @@ export function ecrireCopie(d: Donnees): void {
 export function viderCopie(): void {
   try {
     localStorage.removeItem(CLE);
+    localStorage.removeItem('campus-plus:donnees:v1');
+    localStorage.removeItem(CLE_COURS_VUS);
     localStorage.removeItem(CLE_ALERTES_VUES);
   } catch { /* rien à faire */ }
 }

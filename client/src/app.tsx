@@ -9,10 +9,13 @@ import { Scolarite } from './ecrans/scolarite';
 import { Alertes } from './ecrans/alertes';
 import { Reglages } from './ecrans/reglages';
 import { Connexion } from './ecrans/connexion';
+import { CoursEcran } from './ecrans/cours';
+import { fichiersDe } from './cours';
 
 const ONGLETS = [
   { id: 'aujourdhui', nom: "Aujourd'hui", icone: 'soleil' },
   { id: 'planning', nom: 'Planning', icone: 'calendrier' },
+  { id: 'cours', nom: 'Cours', icone: 'livre' },
   { id: 'alertes', nom: 'Alertes', icone: 'cloche' },
   { id: 'scolarite', nom: 'Scolarité', icone: 'diplome' },
 ] as const satisfies readonly { id: string; nom: string; icone: NomIcone }[];
@@ -41,6 +44,8 @@ export function App() {
   const [reglages, setReglages] = useState(false);
   const [fiche, setFiche] = useState<Evenement | null>(null);
   const [vuesJusqua, setVuesJusqua] = useState(api.alertesVuesJusqua);
+  const [coursOuvert, setCoursOuvert] = useState<number | null>(null);
+  const [fichiersVus, setFichiersVus] = useState(api.fichiersVus);
   const maintenant = useMaintenant();
 
   const versConnexion = useCallback(() => {
@@ -100,7 +105,28 @@ export function App() {
     return () => navigator.serviceWorker?.removeEventListener('message', recu);
   }, [recharger]);
 
+  /** En quittant l'onglet Cours, les fichiers affichés cessent d'être « nouveaux » (au prochain passage). */
+  const quitterCours = () => {
+    if (onglet !== 'cours' || !donnees?.cours) return;
+    api.marquerFichiersVus(donnees.cours.flatMap(fichiersDe).map((f) => f.cle));
+    setFichiersVus(api.fichiersVus());
+  };
+
+  const ouvrirCours = (id: number) => {
+    setReglages(false);
+    setFiche(null);
+    setOnglet('cours');
+    setCoursOuvert(id);
+  };
+
   const choisir = (o: Onglet) => {
+    if (o !== onglet) quitterCours();
+    if (o === 'cours' && onglet === 'cours') setCoursOuvert(null);
+    if (o === 'cours' && fichiersVus === null && donnees?.cours?.length) {
+      // Toute première visite : rien n'est « nouveau », on part de ce qui existe.
+      api.marquerFichiersVus(donnees.cours.flatMap(fichiersDe).map((f) => f.cle));
+      setFichiersVus(api.fichiersVus());
+    }
     setOnglet(o);
     setReglages(false);
     if (o === 'alertes' && donnees?.alertes.length) {
@@ -132,7 +158,7 @@ export function App() {
         </div>
       )}
 
-      <Defilement cle={reglages ? 'reglages' : onglet} surActualiser={reglages ? undefined : actualiser}>
+      <Defilement cle={reglages ? 'reglages' : `${onglet}-${coursOuvert ?? ''}`} surActualiser={reglages ? undefined : actualiser}>
         {reglages ? (
           <Reglages d={d} maintenant={maintenant} horsLigne={horsLigne} surRetour={() => setReglages(false)} surActualiser={actualiser}
             surDeconnexion={async () => { await api.deconnexion().catch(() => undefined); versConnexion(); }}
@@ -141,8 +167,10 @@ export function App() {
           <Aujourdhui d={d} maintenant={maintenant} surOuvrir={setFiche} surReglages={() => setReglages(true)} surAller={choisir} />
         ) : onglet === 'planning' ? (
           <Planning d={d} maintenant={maintenant} surOuvrir={setFiche} />
+        ) : onglet === 'cours' ? (
+          <CoursEcran d={d} maintenant={maintenant} vus={fichiersVus} coursOuvert={coursOuvert} surOuvrirCours={setCoursOuvert} />
         ) : onglet === 'alertes' ? (
-          <Alertes d={d} maintenant={maintenant} vuesJusqua={vuesJusqua} surOuvrir={setFiche} surAller={choisir} />
+          <Alertes d={d} maintenant={maintenant} vuesJusqua={vuesJusqua} surOuvrir={setFiche} surAller={choisir} surOuvrirCours={ouvrirCours} />
         ) : (
           <Scolarite d={d} />
         )}

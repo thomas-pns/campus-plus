@@ -54,6 +54,6 @@ Le NAS reste la référence ; s'il est activé, il copie l'arborescence rangée 
 2. ✅ Serveur : client WebAurion, comptes et données chiffrés, sessions, synchro automatique et à la demande, alertes, API JSON. Testé contre un faux WebAurion ; reste l'essai en vrai (`npm run essai`, puis le NAS).
 3. ✅ Appli PWA (Aujourd'hui, Planning jour/semaine, Alertes, Scolarité, Réglages), image Docker et guide NAS. Vérifiée à l'écran avec des données de démo ; reste la mise en ligne sur le NAS et l'essai sur iPhone.
 4. ✅ Notifications push (salle, horaire, créneau, note), réglables par type dans les Réglages.
-5. Moodle : jeton mobile via CAS, synchro des fichiers sur le NAS, écran Cours.
+5. ✅ Cours e-campus : connexion CAS, jeton mobile, fichiers copiés et chiffrés sur le serveur (une seule copie pour tous), onglet Cours avec recherche et badge « nouveau », alertes « nouveau fichier ». Testé contre un faux e-campus ; reste l'essai en vrai.
 6. Mails PARTAGE + tri IA + devoirs.
 7. Visite guidée, puis OneDrive.

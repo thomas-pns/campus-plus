@@ -51,11 +51,13 @@ export interface Absence {
 
 export interface Alerte {
   id: string;
-  type: 'salle' | 'horaire' | 'supprime' | 'ajoute' | 'note';
+  type: 'salle' | 'horaire' | 'supprime' | 'ajoute' | 'note' | 'fichier';
   date: string;
   titre: string;
   detail: string;
   cleEvenement?: string;
+  /** Cours e-campus concerné (alertes « fichier »). */
+  cours?: number;
 }
 
 export interface Etat {
@@ -71,6 +73,38 @@ export interface Moi {
   etat: Etat;
 }
 
+export interface Fichier {
+  cle: string;
+  nom: string;
+  dossier: string;
+  taille: number;
+  /** Secondes depuis 1970 (date e-campus). */
+  modifie: number;
+  type: string;
+}
+
+export interface ElementCours {
+  id: number;
+  nom: string;
+  type: string;
+  lien: string;
+  fichiers: Fichier[];
+}
+
+export interface Cours {
+  id: number;
+  nom: string;
+  code: string;
+  categorie: string;
+  sections: { nom: string; elements: ElementCours[] }[];
+}
+
+export interface EtatCours {
+  derniereSynchro: string | null;
+  erreur: string | null;
+  ignores: number;
+}
+
 /** Tout ce que l'appli affiche, gardé aussi sur l'appareil pour fonctionner hors ligne. */
 export interface Donnees {
   moi: Moi;
@@ -79,6 +113,9 @@ export interface Donnees {
   moyennes: MoyenneCours[];
   absences: Absence[];
   alertes: Alerte[];
+  /** null : le serveur ne gère pas encore les cours. */
+  cours: Cours[] | null;
+  etatCours: EtatCours | null;
   /** Moment où l'appareil a reçu ces données (ms). */
   recuLe: number;
 }

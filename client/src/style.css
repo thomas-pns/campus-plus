@@ -215,8 +215,8 @@ h1 { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.
 .bandeau + .ecran .contenu { padding-top: 14px; }
 
 /* ---------- Onglets ---------- */
-.onglets { flex: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 6px calc(8px + var(--droite)) calc(6px + var(--bas)) calc(8px + var(--gauche)); background: rgba(255,255,255,.94); border-top: 1px solid var(--trait); }
-.onglets button { display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 48px; justify-content: center; color: #6B7385; font-size: 11px; font-weight: 600; }
+.onglets { flex: none; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); padding: 6px calc(8px + var(--droite)) calc(6px + var(--bas)) calc(8px + var(--gauche)); background: rgba(255,255,255,.94); border-top: 1px solid var(--trait); }
+.onglets button { display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 48px; justify-content: center; color: #6B7385; font-size: 10.5px; font-weight: 600; white-space: nowrap; }
 .onglets button.actif { color: var(--cpe); }
 .onglet-icone { position: relative; display: inline-flex; }
 .badge { position: absolute; top: -4px; right: -10px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--rouge); color: #fff; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
@@ -236,7 +236,7 @@ h1 { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.
 
 @media (min-width: 760px) {
   .contenu { padding-top: 32px; }
-  .onglets { justify-content: center; grid-template-columns: repeat(4, 140px); }
+  .onglets { justify-content: center; grid-template-columns: repeat(5, 130px); }
   .feuille { border-radius: 26px; margin-bottom: 40px; }
 }
 
@@ -248,3 +248,18 @@ h1 { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.
 .sous-rangee .rangee-libelle { font-size: 15px; }
 .explication { display: flex; gap: 12px; padding: 14px; color: var(--cpe); }
 .explication p { color: var(--texte); font-size: 14px; line-height: 1.45; }
+
+/* ---------- Cours ---------- */
+.recherche { display: flex; align-items: center; gap: 8px; background: var(--gris); border-radius: 14px; padding: 0 12px; height: 44px; color: #6B7385; }
+.recherche input { flex: 1; min-width: 0; border: 0; background: transparent; font-size: 16px; outline: none; height: 100%; }
+.masque { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.vignette { width: 40px; height: 40px; flex: none; border-radius: 12px; background: var(--c-fond); color: var(--c); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; }
+.vignette.petite { width: 36px; height: 36px; border-radius: 11px; }
+.vignette.grande { width: 56px; height: 56px; border-radius: 17px; font-size: 19px; }
+.chevron { color: #9AA2B1; display: inline-flex; flex: none; }
+.badge-bleu { min-width: 22px; height: 22px; padding: 0 7px; border-radius: 11px; background: var(--cpe); color: #fff; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.pastille-nouveau { font-size: 11px; font-weight: 800; letter-spacing: .03em; color: #fff; background: var(--cpe); padding: 4px 8px; border-radius: 999px; flex: none; }
+.entete-cours { display: flex; flex-direction: column; gap: 10px; padding: 0 4px; }
+.entete-cours h1 { font-size: 26px; }
+.pastilles { display: flex; flex-wrap: wrap; gap: 8px; }
+.rangee .rangee-texte strong { overflow-wrap: anywhere; }

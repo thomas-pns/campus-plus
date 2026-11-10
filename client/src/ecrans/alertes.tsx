@@ -8,6 +8,7 @@ const TYPES: Record<Alerte['type'], { nom: string; classe: string; icone: NomIco
   supprime: { nom: 'Créneau retiré', classe: 'c-neutre', icone: 'calendrier' },
   ajoute: { nom: 'Nouveau créneau', classe: 'c-cours', icone: 'calendrier' },
   note: { nom: 'Note', classe: 'c-langues', icone: 'note' },
+  fichier: { nom: 'Cours', classe: 'c-td', icone: 'fichier' },
 };
 
 interface Props {
@@ -17,9 +18,10 @@ interface Props {
   vuesJusqua: string;
   surOuvrir: (e: Evenement) => void;
   surAller: (onglet: 'scolarite') => void;
+  surOuvrirCours: (id: number) => void;
 }
 
-export function Alertes({ d, maintenant, vuesJusqua, surOuvrir, surAller }: Props) {
+export function Alertes({ d, maintenant, vuesJusqua, surOuvrir, surAller, surOuvrirCours }: Props) {
   return (
     <>
       <Entete surtitre="Changements détectés" titre="Alertes" />
@@ -28,7 +30,9 @@ export function Alertes({ d, maintenant, vuesJusqua, surOuvrir, surAller }: Prop
           {d.alertes.map((a) => {
             const t = TYPES[a.type];
             const evenement = a.cleEvenement ? d.planning.find((e) => e.cle === a.cleEvenement) : undefined;
-            const action = a.type === 'note' ? () => surAller('scolarite') : evenement ? () => surOuvrir(evenement) : undefined;
+            const action = a.type === 'note' ? () => surAller('scolarite')
+              : a.type === 'fichier' && a.cours !== undefined ? () => surOuvrirCours(a.cours!)
+              : evenement ? () => surOuvrir(evenement) : undefined;
             return (
               <article class={`carte alerte ${a.date > vuesJusqua ? 'nouvelle' : ''}`}>
                 <div class="alerte-haut">
@@ -37,13 +41,13 @@ export function Alertes({ d, maintenant, vuesJusqua, surOuvrir, surAller }: Prop
                 </div>
                 <h2>{a.titre}</h2>
                 <p>{a.detail}</p>
-                {action && <button type="button" class="bouton petit" onClick={action}>{a.type === 'note' ? 'Voir mes notes' : 'Voir le créneau'}</button>}
+                {action && <button type="button" class="bouton petit" onClick={action}>{a.type === 'note' ? 'Voir mes notes' : a.type === 'fichier' ? 'Ouvrir le cours' : 'Voir le créneau'}</button>}
               </article>
             );
           })}
         </div>
       ) : (
-        <Vide icone="cloche" titre="Rien de neuf" texte="Changements de salle ou d'horaire dans les deux semaines à venir, créneaux ajoutés ou retirés, nouvelles notes : tout apparaîtra ici." />
+        <Vide icone="cloche" titre="Rien de neuf" texte="Changements de salle ou d'horaire dans les deux semaines à venir, créneaux ajoutés ou retirés, nouvelles notes, nouveaux fichiers de cours : tout apparaîtra ici." />
       )}
     </>
   );

@@ -15,6 +15,9 @@ import { Synchro } from '../src/synchro.js';
 import { AurionClient } from '../src/sources/aurion.js';
 import { creerApp } from '../src/api.js';
 import { Notifications } from '../src/notifications.js';
+import { SynchroCours } from '../src/cours.js';
+import { MoodleClient } from '../src/sources/moodle.js';
+import { coursFaux, FauxMoodle } from './faux-moodle.js';
 
 const jourPlus = (lundi: Date, n: number) => {
   const d = new Date(lundi.getTime() + n * 86_400_000);
@@ -60,13 +63,21 @@ const faux = new FauxAurion({
 });
 const aurionBase = await faux.demarrer();
 
+const moodle = new FauxMoodle();
+moodle.identifiant = 'demo';
+moodle.motDePasse = 'demo';
+moodle.cours = coursFaux();
+const adressesMoodle = await moodle.demarrer();
+
 const coffre = new Coffre(randomBytes(32));
 const depot = new Depot(await mkdtemp(join(tmpdir(), 'campus-demo-')), coffre);
 const comptes = new Comptes(depot, coffre);
 const fabriqueAurion = () => new AurionClient(aurionBase);
 const notifications = await Notifications.demarrer(depot, coffre, await mkdtemp(join(tmpdir(), 'campus-demo-vapid-')));
-const synchro = new Synchro(depot, comptes, fabriqueAurion, { minutes: 15, surNouvellesAlertes: (id, a) => notifications.alertes(id, a) });
-const app = await creerApp({ depot, comptes, synchro, notifications, fabriqueAurion, cookieSecurise: false, dossierClient: process.env.CLIENT_DIR ?? '../client/dist' });
+const dossierDemo = await mkdtemp(join(tmpdir(), 'campus-demo-fichiers-'));
+const cours = new SynchroCours(depot, comptes, coffre, dossierDemo, () => new MoodleClient(adressesMoodle), { surNouvellesAlertes: (id, a) => notifications.alertes(id, a) });
+const synchro = new Synchro(depot, comptes, fabriqueAurion, { minutes: 15, cours, surNouvellesAlertes: (id, a) => notifications.alertes(id, a) });
+const app = await creerApp({ depot, comptes, synchro, notifications, cours, fabriqueAurion, cookieSecurise: false, dossierClient: process.env.CLIENT_DIR ?? '../client/dist' });
 const port = Number(process.env.PORT ?? 8787);
 await app.listen({ port, host: '127.0.0.1' });
 console.log(`Démo : http://localhost:${port}  (identifiant « demo », mot de passe « demo »)`);
@@ -76,5 +87,6 @@ process.on('SIGUSR2', () => {
   const prochain = faux.donnees.evenements.find((e) => Date.parse(e.start.replace('+0100', '+01:00')) > Date.now() && e.className === 'N01_COURS');
   if (prochain) prochain.title = prochain.title.replace(/^[^\n]+/, 'Amphi B');
   faux.donnees.notes[1][5] = '13';
+  moodle.cours[1].sections[0].elements[0].fichiers!.push({ nom: 'correction-ex10-16.pdf', contenu: '%PDF-1.4 correction', modifie: Math.floor(Date.now() / 1000) });
   console.log('Données de démo modifiées : une salle changée, une note publiée.');
 });

@@ -12,6 +12,7 @@ import { moyennesParCours, type Alerte } from './alertes.js';
 import type { Compte, Comptes } from './comptes.js';
 import type { Depot } from './depot.js';
 import type { Synchro } from './synchro.js';
+import type { SynchroCours } from './cours.js';
 import { abonnementValide, TYPES_PAR_DEFAUT, type Notifications } from './notifications.js';
 
 const COOKIE = 'cp_session';
@@ -26,6 +27,7 @@ export interface Services {
   comptes: Comptes;
   synchro: Synchro;
   notifications?: Notifications;
+  cours?: SynchroCours;
   fabriqueAurion: () => AurionClient;
   cookieSecurise: boolean;
   /** Vrai derrière un proxy inversé (cas du NAS) : l'adresse du visiteur est lue dans X-Forwarded-For. */
@@ -80,7 +82,9 @@ export async function creerApp(s: Services): Promise<FastifyInstance> {
   app.addHook('onSend', async (_req, rep) => {
     rep.header('X-Content-Type-Options', 'nosniff');
     rep.header('Referrer-Policy', 'no-referrer');
-    rep.header('Content-Security-Policy', "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
+    if (!rep.getHeader('Content-Security-Policy')) {
+      rep.header('Content-Security-Policy', "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
+    }
   });
 
   if (s.dossierClient) {
@@ -133,6 +137,11 @@ export async function creerApp(s: Services): Promise<FastifyInstance> {
     const jeton = await s.comptes.ouvrirSession(id);
     // Première récupération avec la connexion déjà ouverte : l'élève a ses données tout de suite.
     const etat = await s.synchro.synchroniser(id, client);
+    // Les cours e-campus (fichiers compris) peuvent être longs à récupérer : en arrière-plan.
+    if (s.cours) {
+      const cours = s.cours;
+      void cours.debloquer(id).then(() => cours.synchroniser(id)).catch(() => undefined);
+    }
     const compte = await s.comptes.lire(id);
     rep.setCookie(COOKIE, jeton, { ...optionsCookie, maxAge: DUREE_COOKIE_S });
     return { nom: compte?.nom ?? '', etat };
@@ -191,8 +200,40 @@ export async function creerApp(s: Services): Promise<FastifyInstance> {
     if (c.aReconnecter) return rep.code(409).send({ erreur: 'Reconnecte-toi avec ton compte CPE' });
     const etat = await s.synchro.etat(c.id);
     if (etat.derniereTentative && maintenant() - Date.parse(etat.derniereTentative) < DELAI_SYNCHRO_MANUELLE_MS) return { etat };
+    if (s.cours) void s.cours.synchroniser(c.id).catch(() => undefined);
     return { etat: await s.synchro.synchroniser(c.id) };
   });
+
+  /* ---------- Cours e-campus ---------- */
+
+  const cours = s.cours;
+  if (cours) {
+    app.get('/api/cours', { onRequest: exigerSession }, async (req) => {
+      const id = req.compte!.id;
+      // L'adresse Moodle des fichiers reste sur le serveur : l'appli passe par /api/fichiers.
+      const liste = (await cours.cours(id)).map((c) => ({
+        ...c,
+        sections: c.sections.map((sec) => ({
+          ...sec,
+          elements: sec.elements.map((e) => ({ ...e, fichiers: e.fichiers.map(({ adresse: _, ...f }) => f) })),
+        })),
+      }));
+      return { cours: liste, etat: await cours.etat(id) };
+    });
+
+    app.get('/api/fichiers/:cle', { onRequest: exigerSession }, async (req, rep) => {
+      const { cle } = req.params as { cle: string };
+      const trouve = await cours.fichier(req.compte!.id, cle);
+      if (!trouve) return rep.code(404).send({ erreur: 'Fichier introuvable' });
+      const nom = trouve.fichier.nom.replace(/[\r\n"]/g, '');
+      rep.header('Content-Type', /^[\w.+-]+\/[\w.+-]+$/.test(trouve.fichier.type) ? trouve.fichier.type : 'application/octet-stream');
+      rep.header('Content-Disposition', `inline; filename="${nom.replace(/[^\x20-\x7e]/g, '_')}"; filename*=UTF-8''${encodeURIComponent(nom)}`);
+      rep.header('Cache-Control', 'private, max-age=86400');
+      // Un fichier de cours ne doit jamais exécuter de script dans l'appli.
+      rep.header('Content-Security-Policy', "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox");
+      return rep.send(trouve.octets);
+    });
+  }
 
   /* ---------- Notifications ---------- */
 

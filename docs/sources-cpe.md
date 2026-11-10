@@ -45,12 +45,22 @@ avec `thead th > span.ui-column-title` et `tbody.ui-datatable-data > tr > td`.
 - Absences : `Date | Motif d'absence | Durée | Horaire | Cours | Intervenant | Matière` ; si vide, une ligne `tr.ui-datatable-empty-message` (« Aucune absence. »).
 - Pas de pagination observée (avec une seule note) : à revérifier quand il y en aura beaucoup.
 
-## Moodle — `https://e-campus.cpe.fr`
+## Moodle — `https://e-campus.cpe.fr` + CAS `https://auth.cpe.fr`
 
-- `tool_mobile_get_public_config` (sans connexion) : API mobile active, connexion `typeoflogin=3` via le fournisseur **CAS** ; `launchurl` = `/admin/tool/mobile/launch.php`.
-- Flux prévu côté serveur : obtenir un jeton de service `moodle_mobile_app` via le SSO CAS (launch.php → `moodlemobile://token=…`), puis `webservice/rest/server.php` :
-  `core_enrol_get_users_courses`, `core_course_get_contents`, fichiers via `webservice/pluginfile.php?token=…`.
-- Côté web (session navigateur), `core_course_get_enrolled_courses_by_timeline_classification` et `core_courseformat_get_state` répondent aussi (testé : 29 cours, sections, ressources, sous-sections).
+Mêmes identifiants que MyCPE (adresse mail + mot de passe). Le CAS est un Apereo CAS sans double authentification.
+
+**Obtenir un jeton (comme l'appli Moodle officielle)** — `server/src/sources/moodle.ts`
+1. `GET /login/index.php?authCAS=CAS` → redirection vers `https://auth.cpe.fr/login?service=https%3A%2F%2Fe-campus.cpe.fr%2Flogin%2Findex.php`.
+2. Formulaire `form#fm1` (action `login`) : `username`, `password`, `execution` (jeton caché, ~7 000 caractères), `_eventId=submit`, `geolocation`, `deviceFingerprint` (vides).
+   Refus : le CAS réaffiche le formulaire. Succès : redirection vers `…/login/index.php?ticket=ST-…`, qui ouvre la session Moodle.
+3. `GET /admin/tool/mobile/launch.php?service=moodle_mobile_app&passport=<aléatoire>&urlscheme=moodlemobile`
+   → redirection vers `moodlemobile://token=<base64 de « md5(adresse du site + passeport):::jeton:::jeton privé »>`.
+4. Le jeton sert ensuite pour `POST /webservice/rest/server.php` (`wstoken`, `wsfunction`, `moodlewsrestformat=json`) :
+   `core_webservice_get_site_info`, `core_enrol_get_users_courses`, `core_course_get_contents` ;
+   fichiers par `webservice/pluginfile.php/…?token=…`. Jeton refusé : `errorcode: invalidtoken` (on en redemande un).
+
+`tool_mobile_get_public_config` (sans connexion) confirme : API mobile active, `typeoflogin=3`, fournisseur « CAS ».
+Testé : 29 cours, sections, ressources et sous-sections (Moodle 4.5+).
 
 ## Mails — `https://partage.cpe.fr` (Zimbra « PARTAGE »)
 

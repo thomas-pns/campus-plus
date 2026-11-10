@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto';
 import type { Evenement } from './sources/planning.js';
 import type { Note } from './sources/aurion.js';
 
-export type TypeAlerte = 'salle' | 'horaire' | 'supprime' | 'ajoute' | 'note';
+export type TypeAlerte = 'salle' | 'horaire' | 'supprime' | 'ajoute' | 'note' | 'fichier';
 
 export interface Alerte {
   id: string;
@@ -17,6 +17,8 @@ export interface Alerte {
   detail: string;
   /** Clé stable de l'événement concerné, s'il y en a un. */
   cleEvenement?: string;
+  /** Cours e-campus concerné (alertes « fichier »). */
+  cours?: number;
 }
 
 /** On ne signale que les changements proches : au-delà, le planning bouge encore beaucoup. */
@@ -139,4 +141,34 @@ export function moyennesParCours(notes: Note[]): MoyenneCours[] {
     moyenne: g.poids ? Math.round((g.somme / g.poids) * 100) / 100 : null,
     epreuvesNotees: g.n,
   }));
+}
+
+/* ---------- Cours e-campus ---------- */
+
+interface FichierIndexe { cle: string; nom: string; adresse: string }
+interface CoursIndexe { id: number; nom: string; sections: { nom: string; elements: { nom: string; fichiers: FichierIndexe[] }[] }[] }
+
+/** Nouveaux fichiers (adresse jamais vue) et fichiers mis à jour (même adresse, nouvelle version). */
+export function comparerCours(avant: CoursIndexe[], apres: CoursIndexe[], maintenant: Date): Alerte[] {
+  const anciennes = new Map<string, string>();
+  for (const c of avant) for (const s of c.sections) for (const e of s.elements) for (const f of e.fichiers) anciennes.set(f.adresse, f.cle);
+  const date = maintenant.toISOString();
+  const alertes: Alerte[] = [];
+  for (const c of apres) {
+    for (const s of c.sections) {
+      for (const e of s.elements) {
+        for (const f of e.fichiers) {
+          const ancienne = anciennes.get(f.adresse);
+          if (ancienne === f.cle) continue;
+          alertes.push({
+            id: identifiant('fichier', f.cle), type: 'fichier', date,
+            titre: `${ancienne ? 'Fichier mis à jour' : 'Nouveau fichier'} : ${c.nom}`,
+            detail: `${f.nom} · ${s.nom}`,
+            cours: c.id,
+          });
+        }
+      }
+    }
+  }
+  return alertes;
 }
