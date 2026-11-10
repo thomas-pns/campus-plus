@@ -62,14 +62,17 @@ export function categorieDe(classe = ''): Categorie {
 const separerListe = (ligne: string) =>
   ligne.split('/').map((s) => s.trim()).filter(Boolean);
 
+/** WebAurion écrit le décalage horaire « +0100 » ; Safari n'accepte que « +01:00 ». */
+const isoStrict = (date: string) => date.replace(/([+-]\d{2})(\d{2})$/, '$1:$2');
+
 export function lireEvenement(brut: EvenementBrut): Evenement {
   const lignes = brut.title.split('\n').map((l) => l.trim());
   const [salles = '', groupe = '', matiere = '', type = '', intervenants = '', ...reste] = lignes;
   return {
     id: brut.id,
     cle: createHash('sha256').update([brut.start, matiere, type, groupe].join('|')).digest('hex').slice(0, 16),
-    debut: brut.start,
-    fin: brut.end,
+    debut: isoStrict(brut.start),
+    fin: isoStrict(brut.end),
     categorie: categorieDe(brut.className),
     classeAurion: brut.className ?? '',
     salles: separerListe(salles),

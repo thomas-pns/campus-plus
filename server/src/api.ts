@@ -4,6 +4,8 @@
  */
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
 import cookie from '@fastify/cookie';
+import statique from '@fastify/static';
+import { resolve } from 'node:path';
 import { AurionClient, ErreurIdentifiants, type Absence, type Note } from './sources/aurion.js';
 import { salleExamenPour, type Evenement } from './sources/planning.js';
 import { moyennesParCours, type Alerte } from './alertes.js';
@@ -26,6 +28,8 @@ export interface Services {
   cookieSecurise: boolean;
   /** Vrai derrière un proxy inversé (cas du NAS) : l'adresse du visiteur est lue dans X-Forwarded-For. */
   derriereProxy?: boolean;
+  /** Dossier de l'appli web compilée ; absent : le serveur ne sert que l'API. */
+  dossierClient?: string | null;
   journal?: boolean;
   maintenant?: () => number;
 }
@@ -68,6 +72,27 @@ export async function creerApp(s: Services): Promise<FastifyInstance> {
     const code = err.statusCode && err.statusCode >= 400 && err.statusCode < 500 ? err.statusCode : 500;
     if (code === 500) app.log.error(err);
     rep.code(code).send({ erreur: code === 500 ? 'Erreur du serveur' : 'Requête invalide' });
+  });
+
+  // En-têtes de sécurité : l'appli ne charge rien d'ailleurs que de ce serveur et ne s'affiche dans aucun cadre.
+  app.addHook('onSend', async (_req, rep) => {
+    rep.header('X-Content-Type-Options', 'nosniff');
+    rep.header('Referrer-Policy', 'no-referrer');
+    rep.header('Content-Security-Policy', "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
+  });
+
+  if (s.dossierClient) {
+    await app.register(statique, {
+      root: resolve(s.dossierClient),
+      // Les fichiers de /assets/ portent une empreinte dans leur nom : cache long. Le reste est revérifié à chaque fois.
+      setHeaders: (res, chemin) => {
+        res.header('Cache-Control', /[\\/]assets[\\/]/.test(chemin) ? 'public, max-age=31536000, immutable' : 'no-cache');
+      },
+    });
+  }
+  app.setNotFoundHandler((req, rep) => {
+    if (s.dossierClient && req.method === 'GET' && !req.url.startsWith('/api/')) return rep.sendFile('index.html');
+    return rep.code(404).send({ erreur: 'Introuvable' });
   });
 
   app.get('/api/sante', async () => ({ ok: true }));

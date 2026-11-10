@@ -220,3 +220,50 @@ describe('serveur Campus+ de bout en bout (faux WebAurion)', () => {
     expect(examen.salleExamen).toEqual(['F008']);
   });
 });
+
+describe('fichiers de l’appli et clé de chiffrement', () => {
+  it('sert l’appli compilée, avec les bons caches, et garde /api en JSON', async () => {
+    const { mkdir, writeFile } = await import('node:fs/promises');
+    const dossier = await mkdtemp(join(tmpdir(), 'campus-client-'));
+    await mkdir(join(dossier, 'assets'));
+    await writeFile(join(dossier, 'index.html'), '<!doctype html><title>Campus+</title>');
+    await writeFile(join(dossier, 'assets', 'app-abc123.js'), 'console.log(1)');
+    const coffre = new Coffre(CLE_TEST);
+    const depot = new Depot(dossier + '-donnees', coffre);
+    const comptes = new Comptes(depot, coffre);
+    const fabriqueAurion = () => new AurionClient('http://127.0.0.1:9');
+    const app = await creerApp({ depot, comptes, synchro: new Synchro(depot, comptes, fabriqueAurion, { minutes: 15 }), fabriqueAurion, cookieSecurise: true, dossierClient: dossier });
+    try {
+      const accueil = await app.inject({ method: 'GET', url: '/' });
+      expect(accueil.statusCode).toBe(200);
+      expect(accueil.body).toContain('Campus+');
+      expect(accueil.headers['cache-control']).toBe('no-cache');
+      expect(accueil.headers['content-security-policy']).toContain("default-src 'self'");
+      expect(accueil.headers['x-content-type-options']).toBe('nosniff');
+      const js = await app.inject({ method: 'GET', url: '/assets/app-abc123.js' });
+      expect(js.headers['cache-control']).toContain('immutable');
+      expect((await app.inject({ method: 'GET', url: '/une/page/quelconque' })).body).toContain('Campus+');
+      const api = await app.inject({ method: 'GET', url: '/api/inconnu' });
+      expect(api.statusCode).toBe(404);
+      expect(api.json()).toEqual({ erreur: 'Introuvable' });
+      expect((await app.inject({ method: 'GET', url: '/../../etc/passwd' })).body).not.toContain('root:');
+    } finally {
+      await app.close();
+      await rm(dossier, { recursive: true, force: true });
+    }
+  });
+
+  it('crée la clé au premier démarrage, la relit ensuite, et préfère celle de l’environnement', async () => {
+    const { chargerCle } = await import('../src/config.js');
+    const dossier = await mkdtemp(join(tmpdir(), 'campus-cle-'));
+    try {
+      const a = await chargerCle({}, dossier);
+      expect(a).toHaveLength(32);
+      expect((await chargerCle({}, dossier)).equals(a)).toBe(true);
+      expect((await chargerCle({ CAMPUS_SECRET_KEY: CLE_TEST.toString('base64') }, dossier)).equals(CLE_TEST)).toBe(true);
+      await expect(chargerCle({ CAMPUS_SECRET_KEY: 'trop-court' }, dossier)).rejects.toThrow(/CAMPUS_SECRET_KEY/);
+    } finally {
+      await rm(dossier, { recursive: true, force: true });
+    }
+  });
+});

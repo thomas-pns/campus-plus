@@ -11,14 +11,13 @@
        barre d'état « default », pas de bloc fixed plein écran, appli à 100 % en CSS. -->
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Campus+">
-  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="description" content="Planning, notes et alertes pour les élèves de CPE Lyon (non officiel).">
+  <link rel="icon" href="/icone.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icone-180.png">
   <title>Campus+</title>
-  <link rel="stylesheet" href="/base.css">
-  <script>
-    if (navigator.standalone || matchMedia('(display-mode: standalone)').matches) document.documentElement.classList.add('standalone');
-  </script>
 </head>
 <body>
   <div id="app"></div>
+  <script type="module" src="/src/main.tsx"></script>
 </body>
 </html>

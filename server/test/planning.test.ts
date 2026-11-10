@@ -25,6 +25,11 @@ describe('planning WebAurion', () => {
     expect(new Set(evts.map((e) => e.cle)).size).toBe(3);
   });
 
+  it('écrit les dates au format ISO strict (lisible par Safari)', () => {
+    expect(evts[0].debut).toBe('2026-11-02T08:00:00+01:00');
+    expect(evts[0].fin).toBe('2026-11-02T10:00:00+01:00');
+  });
+
   it('découpe le titre en champs', () => {
     expect(evts[0]).toMatchObject({ salles: ['F008'], groupe: '3ETI', matiere: 'Algèbre linéaire', type: 'Cours', categorie: 'cours' });
     expect(evts[1].intervenants).toEqual(['MARTIN Paul', 'DURAND Léa']);
