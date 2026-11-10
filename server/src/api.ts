@@ -14,6 +14,7 @@ import type { Compte, Comptes } from './comptes.js';
 import type { Depot } from './depot.js';
 import type { Synchro } from './synchro.js';
 import type { SynchroCours } from './cours.js';
+import type { Taches } from './taches.js';
 import { abonnementValide, TYPES_PAR_DEFAUT, type Notifications } from './notifications.js';
 
 const COOKIE = 'cp_session';
@@ -29,6 +30,7 @@ export interface Services {
   synchro: Synchro;
   notifications?: Notifications;
   cours?: SynchroCours;
+  taches?: Taches;
   fabriqueAurion: () => AurionClient;
   cookieSecurise: boolean;
   /** Vrai derrière un proxy inversé (cas du NAS) : l'adresse du visiteur est lue dans X-Forwarded-For. */
@@ -239,6 +241,54 @@ export async function creerApp(s: Services): Promise<FastifyInstance> {
       rep.header('Cache-Control', 'private, no-store');
       return rep.send(Readable.fromWeb(trouve.flux.body as never));
     });
+  }
+
+  /* ---------- À faire : devoirs e-campus et tâches perso ---------- */
+
+  const taches = s.taches;
+  if (taches) {
+    const JOUR = { type: ['string', 'null'], pattern: '^\\d{4}-\\d{2}-\\d{2}$' };
+    app.get('/api/afaire', { onRequest: exigerSession }, async (req) => {
+      const id = req.compte!.id;
+      const [perso, echeances] = await Promise.all([taches.lire(id), s.cours ? s.cours.echeances(id) : []]);
+      const faites = new Set(perso.echeancesFaites);
+      return { taches: perso.taches, echeances: echeances.map((e) => ({ ...e, fait: faites.has(e.id) })) };
+    });
+
+    app.post('/api/taches', {
+      onRequest: exigerSession,
+      schema: { body: { type: 'object', required: ['titre'], additionalProperties: false, properties: {
+        titre: { type: 'string', minLength: 1, maxLength: 200 }, echeance: JOUR, cours: { type: ['integer', 'null'] },
+      } } },
+    }, async (req) => ({ tache: await taches.ajouter(req.compte!.id, req.body as { titre: string; echeance?: string | null; cours?: number | null }) }));
+
+    app.patch('/api/taches/:tache', {
+      onRequest: exigerSession,
+      schema: {
+        params: { type: 'object', properties: { tache: { type: 'string', pattern: '^[0-9a-f]{16}$' } } },
+        body: { type: 'object', additionalProperties: false, properties: {
+          titre: { type: 'string', minLength: 1, maxLength: 200 }, echeance: JOUR, fait: { type: 'boolean' },
+        } },
+      },
+    }, async (req, rep) => {
+      const tache = await taches.changer(req.compte!.id, (req.params as { tache: string }).tache, req.body as object);
+      return tache ? { tache } : rep.code(404).send({ erreur: 'Tâche introuvable' });
+    });
+
+    app.delete('/api/taches/:tache', {
+      onRequest: exigerSession,
+      schema: { params: { type: 'object', properties: { tache: { type: 'string', pattern: '^[0-9a-f]{16}$' } } } },
+    }, async (req, rep) => ((await taches.supprimer(req.compte!.id, (req.params as { tache: string }).tache)) ? { ok: true } : rep.code(404).send({ erreur: 'Tâche introuvable' })));
+
+    app.put('/api/echeances/:echeance/fait', {
+      onRequest: exigerSession,
+      schema: {
+        params: { type: 'object', properties: { echeance: { type: 'integer', minimum: 1 } } },
+        body: { type: 'object', required: ['fait'], additionalProperties: false, properties: { fait: { type: 'boolean' } } },
+      },
+    }, async (req) => ({
+      echeancesFaites: await taches.marquerEcheance(req.compte!.id, (req.params as { echeance: number }).echeance, (req.body as { fait: boolean }).fait),
+    }));
   }
 
   /* ---------- Notifications ---------- */

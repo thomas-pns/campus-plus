@@ -155,6 +155,36 @@ export function rangerCours(c: CoursMoodle, sections: SectionMoodle[], base: str
   };
 }
 
+/* ---------- Échéances (devoirs, tests…) ---------- */
+
+export interface Echeance {
+  /** Identifiant de l'événement Moodle (stable). */
+  id: number;
+  nom: string;
+  /** Type d'activité : assign (devoir), quiz (test), workshop… */
+  module: string;
+  cours: number;
+  nomCours: string;
+  /** Date limite (secondes depuis 1970). */
+  date: number;
+  /** « Remettre un travail », « Tenter le test »… */
+  action: string;
+  lien: string;
+  enRetard: boolean;
+}
+
+interface EvenementCalendrier {
+  id: number;
+  name: string;
+  activityname?: string;
+  modulename?: string;
+  timesort: number;
+  url?: string;
+  overdue?: boolean;
+  course?: { id: number; fullname: string };
+  action?: { name: string; url: string; actionable: boolean };
+}
+
 /* ---------- Client ---------- */
 
 export class MoodleClient {
@@ -293,6 +323,39 @@ export class MoodleClient {
     for (const c of visibles) {
       const sections = await this.api<SectionMoodle[]>(jeton, 'core_course_get_contents', { courseid: c.id });
       resultat.push(rangerCours(c, sections, this.adresses.moodle));
+    }
+    return resultat;
+  }
+
+  /**
+   * Ce qui reste à faire sur e-campus (même source que le bloc « Chronologie ») : devoirs non rendus,
+   * tests non tentés… des `joursAvant` derniers jours (en retard) aux `joursApres` prochains.
+   */
+  async echeances(jeton: string, maintenant = Date.now(), joursAvant = 14, joursApres = 120): Promise<Echeance[]> {
+    const depuis = Math.floor(maintenant / 1000) - joursAvant * 86_400;
+    const jusqua = Math.floor(maintenant / 1000) + joursApres * 86_400;
+    const resultat: Echeance[] = [];
+    let apres: number | undefined;
+    // Par pages de 50, au plus 4 pages.
+    for (let page = 0; page < 4; page++) {
+      const params: Record<string, number> = { timesortfrom: depuis, timesortto: jusqua, limitnum: 50 };
+      if (apres !== undefined) params.aftereventid = apres;
+      const { events } = await this.api<{ events: EvenementCalendrier[] }>(jeton, 'core_calendar_get_action_events_by_timesort', params);
+      for (const e of events) {
+        resultat.push({
+          id: e.id,
+          nom: decoderEntites(e.activityname || e.name),
+          module: e.modulename ?? '',
+          cours: e.course?.id ?? 0,
+          nomCours: nomPropre(e.course?.fullname ?? ''),
+          date: e.timesort,
+          action: decoderEntites(e.action?.name ?? ''),
+          lien: e.action?.url || e.url || `${this.adresses.moodle}/my/`,
+          enRetard: !!e.overdue,
+        });
+      }
+      if (events.length < 50) break;
+      apres = events[events.length - 1].id;
     }
     return resultat;
   }

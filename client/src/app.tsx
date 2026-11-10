@@ -11,6 +11,8 @@ import { Reglages } from './ecrans/reglages';
 import { Connexion } from './ecrans/connexion';
 import { CoursEcran } from './ecrans/cours';
 import { fichiersDe } from './cours';
+import { Devoirs, basculer } from './ecrans/devoirs';
+import type { Ligne } from './afaire';
 
 const ONGLETS = [
   { id: 'aujourdhui', nom: "Aujourd'hui", icone: 'soleil' },
@@ -41,7 +43,10 @@ export function App() {
   const [horsLigne, setHorsLigne] = useState(false);
   // Ouverture depuis une notification : l'adresse se termine par #alertes.
   const [onglet, setOnglet] = useState<Onglet>(() => (location.hash === '#alertes' ? 'alertes' : 'aujourdhui'));
-  const [reglages, setReglages] = useState(false);
+  /** Page ouverte par-dessus les onglets (depuis Aujourd'hui). */
+  const [page, setPage] = useState<'reglages' | 'devoirs' | null>(null);
+  const reglages = page === 'reglages';
+  const setReglages = (oui: boolean) => setPage(oui ? 'reglages' : null);
   const [fiche, setFiche] = useState<Evenement | null>(null);
   const [vuesJusqua, setVuesJusqua] = useState(api.alertesVuesJusqua);
   const [coursOuvert, setCoursOuvert] = useState<number | null>(null);
@@ -90,6 +95,19 @@ export function App() {
   }, [recharger]);
 
   const fermerFiche = useCallback(() => setFiche(null), []);
+
+  /** Mise à jour locale de la liste « à faire » (après une coche ou un ajout), gardée aussi hors ligne. */
+  const changerAFaire = (afaire: NonNullable<Donnees['afaire']>) => {
+    setDonnees((d) => {
+      if (!d) return d;
+      const nouveau = { ...d, afaire };
+      api.ecrireCopie(nouveau);
+      return nouveau;
+    });
+  };
+  const cocher = (l: Ligne) => {
+    if (donnees?.afaire) void basculer(l, donnees.afaire).then(changerAFaire).catch(() => undefined);
+  };
 
   // Notification touchée alors que l'appli était déjà ouverte : aller aux alertes, données à jour.
   useEffect(() => {
@@ -158,19 +176,23 @@ export function App() {
         </div>
       )}
 
-      <Defilement cle={reglages ? 'reglages' : `${onglet}-${coursOuvert ?? ''}`} surActualiser={reglages ? undefined : actualiser}>
-        {reglages ? (
+      <Defilement cle={page ?? `${onglet}-${coursOuvert ?? ''}`} surActualiser={reglages ? undefined : actualiser}>
+        {page === 'devoirs' ? (
+          <Devoirs d={d} maintenant={maintenant} horsLigne={horsLigne} surRetour={() => setPage(null)} surChange={changerAFaire} />
+        ) : reglages ? (
           <Reglages d={d} maintenant={maintenant} horsLigne={horsLigne} surRetour={() => setReglages(false)} surActualiser={actualiser}
             surDeconnexion={async () => { await api.deconnexion().catch(() => undefined); versConnexion(); }}
             surSuppression={async () => { await api.supprimerCompte(); versConnexion(); }} />
         ) : onglet === 'aujourdhui' ? (
-          <Aujourdhui d={d} maintenant={maintenant} surOuvrir={setFiche} surReglages={() => setReglages(true)} surAller={choisir} />
+          <Aujourdhui d={d} maintenant={maintenant} surOuvrir={setFiche} surReglages={() => setReglages(true)} surAller={choisir}
+            surDevoirs={() => setPage('devoirs')} surCocher={cocher} />
         ) : onglet === 'planning' ? (
           <Planning d={d} maintenant={maintenant} surOuvrir={setFiche} />
         ) : onglet === 'cours' ? (
           <CoursEcran d={d} maintenant={maintenant} vus={fichiersVus} coursOuvert={coursOuvert} surOuvrirCours={setCoursOuvert} />
         ) : onglet === 'alertes' ? (
-          <Alertes d={d} maintenant={maintenant} vuesJusqua={vuesJusqua} surOuvrir={setFiche} surAller={choisir} surOuvrirCours={ouvrirCours} />
+          <Alertes d={d} maintenant={maintenant} vuesJusqua={vuesJusqua} surOuvrir={setFiche} surAller={choisir} surOuvrirCours={ouvrirCours}
+            surDevoirs={() => { setOnglet('aujourdhui'); setPage('devoirs'); }} />
         ) : (
           <Scolarite d={d} />
         )}
@@ -178,7 +200,7 @@ export function App() {
 
       <nav class="onglets" aria-label="Navigation principale">
         {ONGLETS.map((o) => (
-          <button type="button" class={!reglages && o.id === onglet ? 'actif' : ''} aria-current={!reglages && o.id === onglet ? 'page' : undefined} onClick={() => choisir(o.id)}>
+          <button type="button" class={!page && o.id === onglet ? 'actif' : ''} aria-current={!page && o.id === onglet ? 'page' : undefined} onClick={() => choisir(o.id)}>
             <span class="onglet-icone">
               <Icone nom={o.icone} taille={25} epaisseur={1.9} />
               {o.id === 'alertes' && nouvelles > 0 && <span class="badge" aria-label={`${nouvelles} nouvelles`}>{nouvelles}</span>}

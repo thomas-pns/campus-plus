@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto';
 import type { Evenement } from './sources/planning.js';
 import type { Note } from './sources/aurion.js';
 
-export type TypeAlerte = 'salle' | 'horaire' | 'supprime' | 'ajoute' | 'note' | 'fichier';
+export type TypeAlerte = 'salle' | 'horaire' | 'supprime' | 'ajoute' | 'note' | 'fichier' | 'devoir';
 
 export interface Alerte {
   id: string;
@@ -169,6 +169,30 @@ export function comparerCours(avant: CoursIndexe[], apres: CoursIndexe[], mainte
         }
       }
     }
+  }
+  return alertes;
+}
+
+interface EcheanceIndexee { id: number; nom: string; nomCours: string; cours: number; date: number }
+
+const dateCourte = (secondes: number) => new Intl.DateTimeFormat('fr-FR', {
+  timeZone: 'Europe/Paris', weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit',
+}).format(secondes * 1000);
+
+/** Nouveaux devoirs, et devoirs dont la date limite a changé. */
+export function comparerEcheances(avant: EcheanceIndexee[], apres: EcheanceIndexee[], maintenant: Date): Alerte[] {
+  const anciennes = new Map(avant.map((e) => [e.id, e]));
+  const date = maintenant.toISOString();
+  const alertes: Alerte[] = [];
+  for (const e of apres) {
+    if (e.date * 1000 < maintenant.getTime()) continue;
+    const ancienne = anciennes.get(e.id);
+    if (ancienne && ancienne.date === e.date) continue;
+    alertes.push({
+      id: identifiant('devoir', String(e.id), String(e.date)), type: 'devoir', date, cours: e.cours,
+      titre: `${ancienne ? 'Date limite modifiée' : 'Nouveau devoir'} : ${e.nom}`,
+      detail: `${e.nomCours} · à rendre ${dateCourte(e.date)}`,
+    });
   }
   return alertes;
 }

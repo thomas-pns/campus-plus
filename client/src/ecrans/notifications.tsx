@@ -10,6 +10,7 @@ const LIBELLES: Record<Alerte['type'], string> = {
   supprime: 'Créneaux retirés',
   note: 'Nouvelles notes',
   fichier: 'Nouveaux fichiers de cours',
+  devoir: 'Nouveaux devoirs e-campus',
 };
 
 function Interrupteur({ actif, libelle, surChange, desactive }: { actif: boolean; libelle: string; surChange: (v: boolean) => void; desactive?: boolean }) {

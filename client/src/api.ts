@@ -1,5 +1,5 @@
 /** Appels au serveur Campus+ et copie des données sur l'appareil (pour l'affichage hors ligne). */
-import type { Absence, Alerte, Cours, Donnees, Etat, EtatCours, Evenement, Moi, MoyenneCours, Note } from './types';
+import type { Absence, Alerte, Cours, Donnees, Echeance, Etat, EtatCours, Evenement, Moi, MoyenneCours, Note, Tache } from './types';
 
 export class ErreurApi extends Error {
   /** `code` : statut HTTP, ou 0 si le serveur est injoignable. */
@@ -31,17 +31,21 @@ export const deconnexion = () => appel<{ ok: true }>('POST', '/api/deconnexion')
 export const supprimerCompte = () => appel<{ ok: true }>('DELETE', '/api/compte');
 export const synchroniser = () => appel<{ etat: Etat }>('POST', '/api/synchro');
 
+/** Route absente : le serveur est plus ancien que l'appli. */
+const siAbsent = (e: unknown) => {
+  if (e instanceof ErreurApi && e.code === 404) return null;
+  throw e;
+};
+
 export async function chargerTout(): Promise<Donnees> {
-  const [moi, planning, notes, absences, alertes, cours] = await Promise.all([
+  const [moi, planning, notes, absences, alertes, cours, afaire] = await Promise.all([
     appel<Moi>('GET', '/api/moi'),
     appel<{ evenements: Evenement[] }>('GET', '/api/planning'),
     appel<{ notes: Note[]; moyennes: MoyenneCours[] }>('GET', '/api/notes'),
     appel<{ absences: Absence[] }>('GET', '/api/absences'),
     appel<{ alertes: Alerte[] }>('GET', '/api/alertes'),
-    appel<{ cours: Cours[]; etat: EtatCours }>('GET', '/api/cours').catch((e) => {
-      if (e instanceof ErreurApi && e.code === 404) return null;
-      throw e;
-    }),
+    appel<{ cours: Cours[]; etat: EtatCours }>('GET', '/api/cours').catch(siAbsent),
+    appel<{ echeances: Echeance[]; taches: Tache[] }>('GET', '/api/afaire').catch(siAbsent),
   ]);
   return {
     moi,
@@ -52,13 +56,14 @@ export async function chargerTout(): Promise<Donnees> {
     alertes: alertes.alertes,
     cours: cours?.cours ?? null,
     etatCours: cours?.etat ?? null,
+    afaire,
     recuLe: Date.now(),
   };
 }
 
 /* ---------- Copie sur l'appareil ---------- */
 
-const CLE = 'campus-plus:donnees:v2';
+const CLE = 'campus-plus:donnees:v3';
 const CLE_ALERTES_VUES = 'campus-plus:alertes-vues';
 const CLE_COURS_VUS = 'campus-plus:fichiers-vus';
 
@@ -100,6 +105,7 @@ export function viderCopie(): void {
   try {
     localStorage.removeItem(CLE);
     localStorage.removeItem('campus-plus:donnees:v1');
+    localStorage.removeItem('campus-plus:donnees:v2');
     localStorage.removeItem(CLE_COURS_VUS);
     localStorage.removeItem(CLE_ALERTES_VUES);
   } catch { /* rien à faire */ }
@@ -191,3 +197,11 @@ export function choisirAffichage(id: number, a: Affichage): void {
     localStorage.setItem(CLE_AFFICHAGE, JSON.stringify({ ...tout, [id]: a }));
   } catch { /* rien à faire */ }
 }
+
+/* ---------- À faire ---------- */
+
+export const lireAFaire = () => appel<{ echeances: Echeance[]; taches: Tache[] }>('GET', '/api/afaire');
+export const ajouterTache = (t: { titre: string; echeance: string | null }) => appel<{ tache: Tache }>('POST', '/api/taches', t);
+export const changerTache = (id: string, champs: Partial<Pick<Tache, 'titre' | 'echeance' | 'fait'>>) => appel<{ tache: Tache }>('PATCH', `/api/taches/${id}`, champs);
+export const supprimerTache = (id: string) => appel<{ ok: true }>('DELETE', `/api/taches/${id}`);
+export const marquerEcheance = (id: number, fait: boolean) => appel<{ echeancesFaites: number[] }>('PUT', `/api/echeances/${id}/fait`, { fait });

@@ -106,3 +106,41 @@ describe('planning', () => {
     expect(semaineDe([], '2026-11-09')).toMatchObject({ heureDebut: 8, heureFin: 18 });
   });
 });
+
+import { aVenir, grouper, lignes } from '../src/afaire';
+import type { Echeance, Tache } from '../src/types';
+
+describe('à faire', () => {
+  const maintenant = Date.parse('2026-11-11T09:00:00+01:00'); // mercredi
+  const S = (iso: string) => Date.parse(iso) / 1000;
+  const ech = (id: number, nom: string, date: string, plus: Partial<Echeance> = {}): Echeance => ({
+    id, nom, module: 'assign', cours: 1, nomCours: 'Algèbre linéaire (S5)', date: S(date), action: '', lien: '', enRetard: false, fait: false, ...plus,
+  });
+  const tache = (id: string, titre: string, echeance: string | null, fait = false): Tache => ({ id, titre, echeance, cours: null, fait, creeLe: '' });
+  const liste = lignes(
+    [ech(1, 'CR TP1', '2026-11-14T23:59:00+01:00'), ech(2, 'QCM', '2026-11-11T18:00:00+01:00', { module: 'quiz' }), ech(3, 'Exos S44', '2026-11-05T23:59:00+01:00'), ech(4, 'Projet', '2026-12-01T18:00:00+01:00'), ech(5, 'Ancien', '2026-11-04T10:00:00+01:00', { fait: true })],
+    [tache('a', 'Relire chap. 4', '2026-11-13'), tache('b', 'Acheter une calculatrice', null), tache('c', 'Fiche résumé', '2026-11-09', true)],
+    maintenant,
+  );
+
+  it('fusionne et trie par date, heure de Paris', () => {
+    expect(liste.map((l) => l.titre)).toEqual(['Ancien', 'Exos S44', 'Fiche résumé', 'QCM', 'Relire chap. 4', 'CR TP1', 'Projet', 'Acheter une calculatrice']);
+    expect(liste.find((l) => l.titre === 'QCM')).toMatchObject({ heure: '18:00', sous: 'Test · Algèbre linéaire' });
+    expect(liste.find((l) => l.titre === 'Relire chap. 4')).toMatchObject({ sous: 'Ajouté par toi', heure: null });
+  });
+
+  it('range en groupes', () => {
+    expect(grouper(liste, maintenant).map(([g, l]) => [g, l.map((x) => x.titre)])).toEqual([
+      ['retard', ['Exos S44']],
+      ['aujourdhui', ['QCM']],
+      ['semaine', ['Relire chap. 4', 'CR TP1']],
+      ['plusTard', ['Projet']],
+      ['sansDate', ['Acheter une calculatrice']],
+      ['faits', ['Fiche résumé', 'Ancien']],
+    ]);
+  });
+
+  it('montre au plus 3 éléments urgents sur Aujourd’hui', () => {
+    expect(aVenir(liste, maintenant).map((l) => l.titre)).toEqual(['Exos S44', 'QCM', 'Relire chap. 4']);
+  });
+});

@@ -11,8 +11,11 @@ export interface FichierFaux { nom: string; contenu: string; modifie: number; do
 export interface ElementFaux { id: number; nom: string; type: string; fichiers?: FichierFaux[] }
 export interface CoursFaux { id: number; fullname: string; shortname: string; categoryname: string; sections: { nom: string; elements: ElementFaux[] }[] }
 
+export interface EcheanceFausse { id: number; nom: string; module: string; cours: number; date: number; enRetard?: boolean }
+
 export class FauxMoodle {
   private serveur: Server;
+  echeances: EcheanceFausse[] = [];
   base = '';
   identifiant = 'camille.bernard@cpe.test';
   motDePasse = 'mot-de-passe-de-test';
@@ -106,6 +109,20 @@ export class FauxMoodle {
               })),
             })),
           })));
+        }
+        case 'core_calendar_get_action_events_by_timesort': {
+          const de = Number(corps.get('timesortfrom')), a = Number(corps.get('timesortto')), max = Number(corps.get('limitnum'));
+          const apres = Number(corps.get('aftereventid') ?? 0);
+          const liste = this.echeances.filter((e) => e.date >= de && e.date <= a).sort((x, y) => x.date - y.date || x.id - y.id);
+          const debut = apres ? liste.findIndex((e) => e.id === apres) + 1 : 0;
+          return json({ events: liste.slice(debut, debut + max).map((e) => {
+            const c = this.cours.find((x) => x.id === e.cours);
+            return {
+              id: e.id, name: `${e.nom} est à remettre`, activityname: e.nom, modulename: e.module, timesort: e.date, overdue: !!e.enRetard,
+              url: `${this.base}/mod/${e.module}/view.php?id=${e.id}`, course: { id: e.cours, fullname: c?.fullname ?? '' },
+              action: { name: e.module === 'quiz' ? 'Tenter le test' : 'Remettre un travail', url: `${this.base}/mod/${e.module}/view.php?id=${e.id}&action=editsubmission`, actionable: true },
+            };
+          }) });
         }
         default: return json({ exception: 'webservice_access_exception', errorcode: 'accessexception', message: 'Fonction non autorisée' });
       }

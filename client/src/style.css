@@ -264,3 +264,20 @@ h1 { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.
 .pastilles { display: flex; flex-wrap: wrap; gap: 8px; }
 .rangee .rangee-texte strong { overflow-wrap: anywhere; }
 .titre-groupe .compte { color: #9AA2B1; margin-left: 4px; }
+
+/* ---------- À faire ---------- */
+.titre-avec-lien { display: flex; align-items: center; justify-content: space-between; }
+.afaire { gap: 12px; }
+.afaire.fait .rangee-texte strong { text-decoration: line-through; color: var(--doux); }
+.case { width: 26px; height: 26px; flex: none; border-radius: 13px; border: 2px solid #B5BCC8; display: flex; align-items: center; justify-content: center; color: #fff; }
+.case.cochee { background: var(--vert); border-color: var(--vert); }
+.case::after { content: ''; position: absolute; width: 44px; height: 44px; }
+.case { position: relative; }
+.lien-rond { width: 36px; height: 36px; flex: none; border-radius: 18px; background: var(--fond); color: var(--doux); display: inline-flex; align-items: center; justify-content: center; }
+.ajout { display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 14px; }
+.ajout input[type=text] { flex: 1; min-width: 0; border: 0; background: transparent; font-size: 16px; height: 44px; outline: none; }
+.ajout input[type=date] { flex: none; width: 128px; border: 0; border-radius: 10px; background: var(--fond); font-size: 14px; height: 36px; padding: 0 8px; color: var(--moyen); }
+.rond.plein { background: var(--cpe); color: #fff; }
+.vide-court { width: 100%; padding: 16px; text-align: center; color: var(--doux); font-size: 14px; font-weight: 600; }
+.titre-groupe.rouge { color: var(--rouge); }
+.rangee-texte span.rouge { color: var(--rouge); font-weight: 600; }

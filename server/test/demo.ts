@@ -15,6 +15,7 @@ import { Synchro } from '../src/synchro.js';
 import { AurionClient } from '../src/sources/aurion.js';
 import { creerApp } from '../src/api.js';
 import { Notifications } from '../src/notifications.js';
+import { Taches } from '../src/taches.js';
 import { SynchroCours } from '../src/cours.js';
 import { MoodleClient } from '../src/sources/moodle.js';
 import { coursFaux, FauxMoodle } from './faux-moodle.js';
@@ -91,6 +92,18 @@ moodle.cours.push({
     ] },
   ],
 });
+const dans = (jours: number, heure: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() + jours);
+  d.setHours(heure, 59, 0, 0);
+  return Math.floor(d.getTime() / 1000);
+};
+moodle.echeances = [
+  { id: 501, nom: 'Exercices semaine 45', module: 'assign', cours: 4280, date: dans(-2, 23), enRetard: true },
+  { id: 502, nom: 'QCM chapitre 3', module: 'quiz', cours: 4280, date: dans(1, 8) },
+  { id: 503, nom: 'Compte rendu TP filtrage', module: 'assign', cours: 4286, date: dans(3, 23) },
+  { id: 504, nom: 'Projet : site web', module: 'assign', cours: 4286, date: dans(20, 18) },
+];
 const adressesMoodle = await moodle.demarrer();
 
 const coffre = new Coffre(randomBytes(32));
@@ -101,7 +114,7 @@ const notifications = await Notifications.demarrer(depot, coffre, await mkdtemp(
 const dossierDemo = await mkdtemp(join(tmpdir(), 'campus-demo-fichiers-'));
 const cours = new SynchroCours(depot, comptes, coffre, dossierDemo, () => new MoodleClient(adressesMoodle), { surNouvellesAlertes: (id, a) => notifications.alertes(id, a) });
 const synchro = new Synchro(depot, comptes, fabriqueAurion, { minutes: 15, cours, surNouvellesAlertes: (id, a) => notifications.alertes(id, a) });
-const app = await creerApp({ depot, comptes, synchro, notifications, cours, fabriqueAurion, cookieSecurise: false, dossierClient: process.env.CLIENT_DIR ?? '../client/dist' });
+const app = await creerApp({ depot, comptes, synchro, notifications, cours, taches: new Taches(depot), fabriqueAurion, cookieSecurise: false, dossierClient: process.env.CLIENT_DIR ?? '../client/dist' });
 const port = Number(process.env.PORT ?? 8787);
 await app.listen({ port, host: '127.0.0.1' });
 console.log(`Démo : http://localhost:${port}  (identifiant « demo », mot de passe « demo »)`);

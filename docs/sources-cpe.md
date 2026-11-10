@@ -58,6 +58,8 @@ Mêmes identifiants que MyCPE (adresse mail + mot de passe). Le CAS est un Apere
 4. Le jeton sert ensuite pour `POST /webservice/rest/server.php` (`wstoken`, `wsfunction`, `moodlewsrestformat=json`) :
    `core_webservice_get_site_info`, `core_enrol_get_users_courses`, `core_course_get_contents` ;
    fichiers par `webservice/pluginfile.php/…?token=…`. Jeton refusé : `errorcode: invalidtoken` (on en redemande un).
+   Échéances (devoirs non rendus, tests…) : `core_calendar_get_action_events_by_timesort` (`timesortfrom`, `timesortto`, `limitnum`, `aftereventid`), la même source que le bloc « Chronologie ».
+   Pas de connexion automatique du navigateur : la clé `tool_mobile_get_autologin_key` est liée à l'adresse IP du demandeur (le serveur), elle ne marcherait pas sur le téléphone hors de chez soi.
 
 `tool_mobile_get_public_config` (sans connexion) confirme : API mobile active, `typeoflogin=3`, fournisseur « CAS ».
 Testé : 29 cours, sections, ressources et sous-sections (Moodle 4.5+).

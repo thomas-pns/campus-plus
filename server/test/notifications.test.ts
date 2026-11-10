@@ -79,7 +79,7 @@ describe('notifications de bout en bout (faux WebAurion, faux service push)', ()
   it('donne la clé publique et les réglages par défaut', async () => {
     expect((await req('GET', '/api/notifications')).json()).toEqual({
       cle: 'cle-publique-de-test', appareils: 0,
-      types: { salle: true, horaire: true, ajoute: true, supprime: true, note: true, fichier: true },
+      types: { salle: true, horaire: true, ajoute: true, supprime: true, note: true, fichier: true, devoir: true },
     });
   });
 

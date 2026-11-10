@@ -8,11 +8,11 @@
 import { mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
-import { comparerCours, type Alerte } from './alertes.js';
+import { comparerCours, comparerEcheances, type Alerte } from './alertes.js';
 import type { Coffre } from './coffre.js';
 import type { Comptes } from './comptes.js';
 import type { Depot } from './depot.js';
-import { ErreurIdentifiantsMoodle, ErreurJeton, type Cours, type Fichier, type MoodleClient } from './sources/moodle.js';
+import { ErreurIdentifiantsMoodle, ErreurJeton, type Cours, type Echeance, type Fichier, type MoodleClient } from './sources/moodle.js';
 
 export interface EtatCours {
   derniereSynchro: string | null;
@@ -74,6 +74,10 @@ export class SynchroCours {
     return { ...ETAT_VIDE, ...(await this.depot.lire<EtatCours>(id, 'etatcours')) };
   }
 
+  async echeances(id: string): Promise<Echeance[]> {
+    return (await this.depot.lire<Echeance[]>(id, 'echeances')) ?? [];
+  }
+
   async cours(id: string): Promise<Cours[]> {
     return (await this.depot.lire<Cours[]>(id, 'cours')) ?? [];
   }
@@ -125,10 +129,21 @@ export class SynchroCours {
       }
 
       const ignores = await this.copierFichiers(cours, client, jeton);
+      // Les échéances ne bloquent pas le reste si e-campus refuse cette fonction.
+      const echeances = await client.echeances(jeton, t.getTime()).catch((e) => {
+        this.options.journal?.(`Échéances indisponibles : ${(e as Error).message}`);
+        return null;
+      });
 
-      const ancien = await this.depot.lire<Cours[]>(id, 'cours');
+      const [ancien, anciennesEcheances] = await Promise.all([
+        this.depot.lire<Cours[]>(id, 'cours'),
+        this.depot.lire<Echeance[]>(id, 'echeances'),
+      ]);
       // Première synchro : rien à comparer, donc pas d'alerte.
-      const nouvelles = ancien ? comparerCours(ancien, cours, t) : [];
+      const nouvelles = [
+        ...(ancien ? comparerCours(ancien, cours, t) : []),
+        ...(anciennesEcheances && echeances ? comparerEcheances(anciennesEcheances, echeances, t) : []),
+      ];
       if (nouvelles.length) {
         const anciennes = (await this.depot.lire<Alerte[]>(id, 'alertes')) ?? [];
         const connues = new Set(anciennes.map((a) => a.id));
@@ -137,6 +152,7 @@ export class SynchroCours {
         if (inedites.length) await this.options.surNouvellesAlertes?.(id, inedites).catch((e) => this.options.journal?.(`Notifications en échec : ${(e as Error).message}`));
       }
       await this.depot.ecrire(id, 'cours', cours);
+      if (echeances) await this.depot.ecrire(id, 'echeances', echeances);
       const etat: EtatCours = { derniereSynchro: t.toISOString(), derniereTentative: t.toISOString(), erreur: null, echecs: 0, ignores };
       await this.depot.ecrire(id, 'etatcours', etat);
       return etat;

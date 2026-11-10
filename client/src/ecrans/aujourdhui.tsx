@@ -2,6 +2,9 @@ import type { Donnees, Evenement } from '../types';
 import { ajouterJours, dans, heureDe, initialesDe, jourDe, jourEnToutesLettres, jourParis, prenomDe } from '../dates';
 import { aLaUne, CATEGORIES, duJour, prochainJourAvecCours, salleDe, salleDeduite, titreDe } from '../planning';
 import { Icone, LigneEvenement, Vide } from '../composants';
+import { aVenir, lignes } from '../afaire';
+import { LigneAFaire } from './devoirs';
+import type { Ligne } from '../afaire';
 
 interface Props {
   d: Donnees;
@@ -9,11 +12,13 @@ interface Props {
   surOuvrir: (e: Evenement) => void;
   surReglages: () => void;
   surAller: (onglet: 'alertes' | 'scolarite') => void;
+  surDevoirs: () => void;
+  surCocher: (l: Ligne) => void;
 }
 
 const SEPT_JOURS = 7 * 86_400_000;
 
-export function Aujourdhui({ d, maintenant, surOuvrir, surReglages, surAller }: Props) {
+export function Aujourdhui({ d, maintenant, surOuvrir, surReglages, surAller, surDevoirs, surCocher }: Props) {
   const jour = jourParis(maintenant);
   const une = aLaUne(d.planning, maintenant);
   const liste = duJour(d.planning, jour);
@@ -23,6 +28,7 @@ export function Aujourdhui({ d, maintenant, surOuvrir, surReglages, surAller }: 
 
   const derniereNote = [...d.notes].reverse().find((n) => n.note !== null);
   const alertesRecentes = d.alertes.filter((a) => maintenant - Date.parse(a.date) < SEPT_JOURS);
+  const urgents = d.afaire ? aVenir(lignes(d.afaire.echeances, d.afaire.taches, maintenant), maintenant) : [];
 
   return (
     <>
@@ -64,6 +70,22 @@ export function Aujourdhui({ d, maintenant, surOuvrir, surReglages, surAller }: 
           </>
         )}
       </section>
+
+      {d.afaire && (
+        <section class="bloc" aria-label="À faire">
+          <div class="titre-avec-lien">
+            <h2 class="titre-bloc">À faire</h2>
+            <button type="button" class="lien-bouton" onClick={surDevoirs}>Tous les devoirs</button>
+          </div>
+          {urgents.length ? (
+            <div class="carte liste">
+              {urgents.map((l) => <LigneAFaire l={l} maintenant={maintenant} surCocher={surCocher} />)}
+            </div>
+          ) : (
+            <button type="button" class="carte vide-court" onClick={surDevoirs}>Rien d'urgent cette semaine · ajouter une tâche</button>
+          )}
+        </section>
+      )}
 
       <section class="tuiles" aria-label="Nouveautés">
         <button type="button" class="tuile" onClick={() => surAller('scolarite')}>

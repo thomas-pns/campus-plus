@@ -9,6 +9,7 @@ const TYPES: Record<Alerte['type'], { nom: string; classe: string; icone: NomIco
   ajoute: { nom: 'Nouveau créneau', classe: 'c-cours', icone: 'calendrier' },
   note: { nom: 'Note', classe: 'c-langues', icone: 'note' },
   fichier: { nom: 'Cours', classe: 'c-td', icone: 'fichier' },
+  devoir: { nom: 'Devoir', classe: 'c-tp', icone: 'liste' },
 };
 
 interface Props {
@@ -19,9 +20,10 @@ interface Props {
   surOuvrir: (e: Evenement) => void;
   surAller: (onglet: 'scolarite') => void;
   surOuvrirCours: (id: number) => void;
+  surDevoirs: () => void;
 }
 
-export function Alertes({ d, maintenant, vuesJusqua, surOuvrir, surAller, surOuvrirCours }: Props) {
+export function Alertes({ d, maintenant, vuesJusqua, surOuvrir, surAller, surOuvrirCours, surDevoirs }: Props) {
   return (
     <>
       <Entete surtitre="Changements détectés" titre="Alertes" />
@@ -31,6 +33,7 @@ export function Alertes({ d, maintenant, vuesJusqua, surOuvrir, surAller, surOuv
             const t = TYPES[a.type];
             const evenement = a.cleEvenement ? d.planning.find((e) => e.cle === a.cleEvenement) : undefined;
             const action = a.type === 'note' ? () => surAller('scolarite')
+              : a.type === 'devoir' ? surDevoirs
               : a.type === 'fichier' && a.cours !== undefined ? () => surOuvrirCours(a.cours!)
               : evenement ? () => surOuvrir(evenement) : undefined;
             return (
@@ -41,13 +44,13 @@ export function Alertes({ d, maintenant, vuesJusqua, surOuvrir, surAller, surOuv
                 </div>
                 <h2>{a.titre}</h2>
                 <p>{a.detail}</p>
-                {action && <button type="button" class="bouton petit" onClick={action}>{a.type === 'note' ? 'Voir mes notes' : a.type === 'fichier' ? 'Ouvrir le cours' : 'Voir le créneau'}</button>}
+                {action && <button type="button" class="bouton petit" onClick={action}>{a.type === 'note' ? 'Voir mes notes' : a.type === 'fichier' ? 'Ouvrir le cours' : a.type === 'devoir' ? 'Voir mes devoirs' : 'Voir le créneau'}</button>}
               </article>
             );
           })}
         </div>
       ) : (
-        <Vide icone="cloche" titre="Rien de neuf" texte="Changements de salle ou d'horaire dans les deux semaines à venir, créneaux ajoutés ou retirés, nouvelles notes, nouveaux fichiers de cours : tout apparaîtra ici." />
+        <Vide icone="cloche" titre="Rien de neuf" texte="Changements de salle ou d'horaire dans les deux semaines à venir, créneaux ajoutés ou retirés, nouvelles notes, nouveaux fichiers et devoirs : tout apparaîtra ici." />
       )}
     </>
   );

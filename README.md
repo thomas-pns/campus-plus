@@ -21,7 +21,8 @@ Une appli web (PWA) open source pour les élèves de **CPE Lyon** : ton planning
 - `server/` (Node ≥ 20) : connexion à MyCPE et à e-campus avec le compte de chaque élève, planning, notes, absences, cours et fichiers, synchro automatique, alertes, notifications, API JSON. Testé contre un faux MyCPE.
 - `client/` : l'appli (PWA Preact) avec les écrans Aujourd'hui, Planning (jour et semaine), Alertes, Scolarité et Réglages. Consultable hors ligne, « tirer pour actualiser », notifications sur le téléphone (changement de salle, nouvelle note…).
 - Cours e-campus copiés sur le serveur, rangés par semestre et pôle, avec recherche, badge « nouveau » et alerte à chaque nouveau fichier.
-- À venir : mails triés, devoirs, visite guidée, vue mois, thème sombre.
+- Devoirs : échéances e-campus avec leur date limite et tâches perso, résumées sur l'accueil.
+- À venir : mails triés par l'IA, visite guidée, vue mois, thème sombre.
 
 ## Voir la démo (sans compte CPE)
 

@@ -51,7 +51,7 @@ export interface Absence {
 
 export interface Alerte {
   id: string;
-  type: 'salle' | 'horaire' | 'supprime' | 'ajoute' | 'note' | 'fichier';
+  type: 'salle' | 'horaire' | 'supprime' | 'ajoute' | 'note' | 'fichier' | 'devoir';
   date: string;
   titre: string;
   detail: string;
@@ -105,6 +105,31 @@ export interface EtatCours {
   ignores: number;
 }
 
+export interface Echeance {
+  id: number;
+  nom: string;
+  /** assign (devoir), quiz (test)… */
+  module: string;
+  cours: number;
+  nomCours: string;
+  /** Date limite, secondes depuis 1970. */
+  date: number;
+  action: string;
+  lien: string;
+  enRetard: boolean;
+  fait: boolean;
+}
+
+export interface Tache {
+  id: string;
+  titre: string;
+  /** « AAAA-MM-JJ » ou null. */
+  echeance: string | null;
+  cours: number | null;
+  fait: boolean;
+  creeLe: string;
+}
+
 /** Tout ce que l'appli affiche, gardé aussi sur l'appareil pour fonctionner hors ligne. */
 export interface Donnees {
   moi: Moi;
@@ -116,6 +141,8 @@ export interface Donnees {
   /** null : le serveur ne gère pas encore les cours. */
   cours: Cours[] | null;
   etatCours: EtatCours | null;
+  /** null : le serveur ne gère pas encore les devoirs. */
+  afaire: { echeances: Echeance[]; taches: Tache[] } | null;
   /** Moment où l'appareil a reçu ces données (ms). */
   recuLe: number;
 }

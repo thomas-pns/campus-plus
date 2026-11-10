@@ -8,6 +8,7 @@ import { AurionClient } from './sources/aurion.js';
 import { creerApp } from './api.js';
 import { Notifications } from './notifications.js';
 import { SynchroCours } from './cours.js';
+import { Taches } from './taches.js';
 import { MoodleClient } from './sources/moodle.js';
 
 const config = await lireConfig();
@@ -28,7 +29,7 @@ const synchro = new Synchro(depot, comptes, fabriqueAurion, {
 });
 
 const app = await creerApp({
-  depot, comptes, synchro, notifications, cours, fabriqueAurion,
+  depot, comptes, synchro, notifications, cours, taches: new Taches(depot), fabriqueAurion,
   cookieSecurise: config.cookieSecurise,
   derriereProxy: config.derriereProxy,
   dossierClient: config.dossierClient,
