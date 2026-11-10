@@ -1,0 +1,19 @@
+# Campus+ — à coller dans Container Manager > Projet > Créer
+# Les données (chiffrées) et la clé de chiffrement sont rangées dans le dossier « data » à côté de ce fichier.
+services:
+  campus-plus:
+    image: ghcr.io/thomas-pns/campus-plus:latest
+    pull_policy: always
+    container_name: campus-plus
+    restart: unless-stopped
+    ports:
+      - "8767:3000"             # NE PAS ouvrir ce port sur la box : passer par le proxy inversé (HTTPS)
+    volumes:
+      - ./data:/data
+    environment:
+      # Minutes entre deux synchros automatiques avec MyCPE, par élève
+      SYNC_MINUTES: "15"
+      # Facultatif : fournir la clé de chiffrement ici (openssl rand -base64 32) au lieu de la laisser
+      # se créer dans data/cle-secrete. Ne plus la changer ensuite.
+      # CAMPUS_SECRET_KEY: ""
+    mem_limit: 256m

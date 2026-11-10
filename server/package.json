@@ -10,7 +10,8 @@
     "start": "node dist/index.js",
     "essai": "tsx src/essai.ts",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "demo": "tsx test/demo.ts"
   },
   "engines": {
     "node": ">=20"

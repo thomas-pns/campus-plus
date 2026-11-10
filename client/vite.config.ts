@@ -1,8 +1,10 @@
 import { defineConfig } from 'vite';
 import preact from '@preact/preset-vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import paquet from './package.json' with { type: 'json' };
 
 export default defineConfig({
+  define: { __VERSION__: JSON.stringify(paquet.version) },
   plugins: [
     preact(),
     VitePWA({

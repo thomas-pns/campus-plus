@@ -45,7 +45,7 @@ export function Planning({ d, maintenant, surOuvrir }: Props) {
             onClick={() => { setJour(j); setVue('jour'); }} aria-label={jourEnToutesLettres(j)} aria-current={j === aujourdhui ? 'date' : undefined}>
             <span>{libelleJour(j, { weekday: 'short' }).replace('.', '')}</span>
             <strong>{Number(j.slice(8))}</strong>
-            <i class={semaine.colonnes[i].length ? 'point' : 'point vide'} />
+            <i class={semaine.colonnes[i].length ? 'point' : 'point sans'} />
           </button>
         ))}
       </div>

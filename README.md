@@ -16,10 +16,18 @@ Une appli web (PWA) open source pour les élèves de **CPE Lyon** : ton planning
 
 ## État
 
-🚧 Projet en cours. Voir le [cahier des charges](docs/cahier-des-charges.md) et les [sources de données](docs/sources-cpe.md).
+🚧 Première version utilisable. Voir le [cahier des charges](docs/cahier-des-charges.md), les [sources de données](docs/sources-cpe.md) et le [guide d'installation sur un NAS](DEPLOIEMENT.md).
 
-- `server/` (Node ≥ 20) : connexion à MyCPE avec le compte de chaque élève, récupération du planning, des notes et des absences, synchro automatique, alertes (salle changée, note publiée…), API JSON. Tout est testé contre un faux MyCPE (`npm test`).
-- `client/` : pour l'instant une coquille PWA avec le correctif d'affichage iOS 26/27. L'appli elle-même arrive.
+- `server/` (Node ≥ 20) : connexion à MyCPE avec le compte de chaque élève, planning, notes, absences, synchro automatique, alertes, API JSON. Testé contre un faux MyCPE.
+- `client/` : l'appli (PWA Preact) avec les écrans Aujourd'hui, Planning (jour et semaine), Alertes, Scolarité et Réglages. Consultable hors ligne, « tirer pour actualiser ».
+- À venir : cours e-campus, mails triés, devoirs, visite guidée, vue mois, thème sombre.
+
+## Voir la démo (sans compte CPE)
+
+```bash
+cd client && npm install && npm run build
+cd ../server && npm install && npm run demo   # http://localhost:8787, identifiant « demo », mot de passe « demo »
+```
 
 ## Essayer en vrai
 
