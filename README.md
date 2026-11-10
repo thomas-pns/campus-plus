@@ -16,25 +16,45 @@ Une appli web (PWA) open source pour les élèves de **CPE Lyon** : ton planning
 
 ## État
 
-🚧 Début du projet. Voir le [cahier des charges](docs/cahier-des-charges.md) et les [sources de données](docs/sources-cpe.md).
+🚧 Projet en cours. Voir le [cahier des charges](docs/cahier-des-charges.md) et les [sources de données](docs/sources-cpe.md).
 
-- `server/` : Node ≥ 20. Client WebAurion (connexion, planning, notes, absences) et lecture du planning, testés sur des données fictives (`npm test`).
-- `client/` : coquille PWA avec le correctif d'affichage iOS 26/27.
+- `server/` (Node ≥ 20) : connexion à MyCPE avec le compte de chaque élève, récupération du planning, des notes et des absences, synchro automatique, alertes (salle changée, note publiée…), API JSON. Tout est testé contre un faux MyCPE (`npm test`).
+- `client/` : pour l'instant une coquille PWA avec le correctif d'affichage iOS 26/27. L'appli elle-même arrive.
 
-## Lancer le serveur
+## Essayer en vrai
+
+Avec [Node.js](https://nodejs.org) 20 ou plus :
 
 ```bash
 cd server
 npm install
-npm test
-cp ../.env.example ../.env   # puis remplir CAMPUS_SECRET_KEY
+npm test          # tests, sans toucher au site de l'école
+npm run essai     # se connecte à MyCPE avec TES identifiants (demandés au clavier, non enregistrés)
 ```
+
+## Lancer le serveur
+
+```bash
+cp .env.example .env    # puis remplir CAMPUS_SECRET_KEY (openssl rand -base64 32)
+cd server && npm run dev
+```
+
+| Route | Rôle |
+|---|---|
+| `POST /api/connexion` | `{identifiant, motDePasse}` CPE → cookie de session + première synchro |
+| `GET /api/moi` | nom, état de la synchro |
+| `GET /api/planning?debut=&fin=` | créneaux (avec `salleExamen` pour les examens) |
+| `GET /api/notes` · `/api/absences` · `/api/alertes` | scolarité et changements détectés |
+| `POST /api/synchro` | actualiser maintenant (au plus une fois par minute) |
+| `POST /api/deconnexion` · `DELETE /api/compte` | se déconnecter · tout effacer du serveur |
 
 ## Sécurité
 
-- Identifiants et jetons chiffrés au repos sur le serveur, jamais dans le dépôt.
-- Pas de vraies données dans les tests : uniquement des exemples inventés.
-- Le tri IA des mails est optionnel (opt-in) : le contenu des mails concernés est envoyé au modèle choisi.
+- Le serveur garde le mot de passe CPE de chaque élève, parce qu'il doit se reconnecter seul à MyCPE. Il est chiffré (AES-256-GCM), comme toutes les données sur le disque ; la clé reste dans le `.env` du serveur. Héberge-le seulement pour des gens qui te font confiance.
+- « Supprimer mon compte » efface tout du serveur.
+- Si MyCPE refuse le mot de passe, le serveur arrête d'essayer jusqu'à la prochaine connexion (pas de risque de bloquer le compte), et les essais de connexion à l'appli sont limités.
+- Rien de personnel dans le dépôt : pas d'identifiant, de cookie, de lien iCal ni de vraie donnée. Les tests utilisent des exemples inventés.
+- Le tri IA des mails sera optionnel (opt-in) : le contenu des mails concernés est envoyé au modèle choisi.
 
 ## Licence
 

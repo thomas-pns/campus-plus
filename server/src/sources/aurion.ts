@@ -2,18 +2,25 @@
  * Client non officiel pour WebAurion (mycpe.cpe.fr), l'appli de scolarité de CPE.
  *
  * WebAurion est une appli JSF/PrimeFaces : pas d'API REST, chaque page est un formulaire
- * avec un jeton `javax.faces.ViewState`. Ce client reproduit ce que fait le navigateur.
+ * avec un jeton `javax.faces.ViewState` propre à la page. Ce client reproduit ce que fait
+ * le navigateur : il garde les cookies, la page courante et son formulaire.
  * Détails des requêtes : docs/sources-cpe.md
  *
- * Chaque élève utilise SES identifiants ; rien n'est stocké ici (le stockage chiffré est géré ailleurs).
+ * Chaque élève utilise SES identifiants ; rien n'est stocké ici (voir comptes.ts).
  */
 import * as cheerio from 'cheerio';
 import { extraireEvenements, lireEvenement, type Evenement } from './planning.js';
 
-const BASE = 'https://mycpe.cpe.fr';
-const MENU = { planning: '18', notes: '19', absences: '20' } as const;
+/** Entrées du menu latéral : libellé affiché, et numéro relevé le 10/11/2026 (secours). */
+const MENU = {
+  planning: { libelle: 'Planning', secours: '18' },
+  notes: { libelle: 'Notes', secours: '19' },
+  absences: { libelle: 'Absences', secours: '20' },
+} as const;
 
 export class ErreurAurion extends Error {}
+/** Identifiant ou mot de passe refusé : ne pas réessayer en boucle (risque de blocage du compte). */
+export class ErreurIdentifiants extends ErreurAurion {}
 
 export interface Note {
   semestre: string;
@@ -35,21 +42,76 @@ export interface Absence {
   matiere: string;
 }
 
-const nombre = (s: string) => {
+const nombre = (s = '') => {
   const n = parseFloat(s.replace(',', '.'));
   return Number.isFinite(n) ? n : null;
 };
 
+const sansAccents = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+/**
+ * Lit un tableau PrimeFaces en s'appuyant sur les titres de colonnes (et non leur position) :
+ * `colonnes` associe un nom de champ à un mot attendu dans l'en-tête.
+ * Renvoie null si aucun tableau de la page n'a ces en-têtes.
+ */
+export function lireTableau<C extends string>(html: string, colonnes: Record<C, string>): Record<C, string>[] | null {
+  const $ = cheerio.load(html);
+  const champs = Object.keys(colonnes) as C[];
+  // Un tableau PrimeFaces « défilant » sépare l'en-tête et le corps en deux <table> : on raisonne par bloc.
+  const blocs = $('.ui-datatable').toArray();
+  for (const bloc of blocs.length ? blocs : $('table').toArray()) {
+    // Le titre est dans <span class="ui-column-title"> ; le <th> contient aussi le libellé du filtre.
+    const entetes = $(bloc).find('thead').first().find('th').toArray()
+      .map((th) => $(th).find('.ui-column-title').first().text() || $(th).text())
+      .map((t) => sansAccents(t.replace(/\s+/g, ' ').trim()));
+    if (!entetes.length) continue;
+    const index = {} as Record<C, number>;
+    for (const champ of champs) index[champ] = entetes.findIndex((e) => e.startsWith(sansAccents(colonnes[champ])));
+    if (champs.some((c) => index[c] < 0)) continue;
+    return $(bloc)
+      .find('tbody tr')
+      .toArray()
+      .map((tr) => $(tr).children('td').toArray().map((td) => $(td).text().replace(/\s+/g, ' ').trim()))
+      .filter((cellules) => cellules.length >= entetes.length) // écarte la ligne « Aucune … »
+      .map((cellules) => {
+        const ligne = {} as Record<C, string>;
+        for (const champ of champs) ligne[champ] = cellules[index[champ]] ?? '';
+        return ligne;
+      });
+  }
+  return null;
+}
+
+export function lireNotes(html: string): Note[] | null {
+  const lignes = lireTableau(html, {
+    semestre: 'Semestre', module: 'Module', cours: 'Cours', epreuve: 'Epreuve',
+    coefficient: 'Coefficient', note: 'Note', motifAbsence: 'Motif',
+  });
+  return lignes?.map((l) => ({ ...l, coefficient: nombre(l.coefficient), note: nombre(l.note) })) ?? null;
+}
+
+export function lireAbsences(html: string): Absence[] | null {
+  return lireTableau(html, {
+    date: 'Date', motif: 'Motif', duree: 'Duree', horaire: 'Horaire',
+    cours: 'Cours', intervenant: 'Intervenant', matiere: 'Matiere',
+  });
+}
+
+interface Page {
+  url: string;
+  html: string;
+}
+
 export class AurionClient {
   private cookies = new Map<string, string>();
-  private viewState = '';
-  private page = '';
+  private page: Page | null = null;
+  private viewStateAjax: string | null = null;
+  /** « Prénom NOM », lu dans le titre de la page planning. */
+  nomEleve = '';
 
-  /* ---------- HTTP avec cookies ---------- */
+  constructor(private base = 'https://mycpe.cpe.fr', private delaiMs = 20_000) {}
 
-  private enteteCookies() {
-    return [...this.cookies].map(([k, v]) => `${k}=${v}`).join('; ');
-  }
+  /* ---------- HTTP avec cookies et redirections ---------- */
 
   private garderCookies(res: Response) {
     for (const c of res.headers.getSetCookie?.() ?? []) {
@@ -59,74 +121,117 @@ export class AurionClient {
     }
   }
 
-  private async requete(chemin: string, init: RequestInit = {}, sauts = 5): Promise<{ url: string; texte: string }> {
-    const res = await fetch(BASE + chemin, {
-      ...init,
-      redirect: 'manual',
-      headers: { ...(init.headers as Record<string, string>), Cookie: this.enteteCookies(), 'User-Agent': 'CampusPlus/0.1' },
-    });
+  private async requete(chemin: string, init: { method?: string; headers?: Record<string, string>; body?: URLSearchParams } = {}, sauts = 6): Promise<Page> {
+    let res: Response;
+    try {
+      res = await fetch(new URL(chemin, this.base), {
+        ...init,
+        redirect: 'manual',
+        signal: AbortSignal.timeout(this.delaiMs),
+        headers: {
+          ...init.headers,
+          Cookie: [...this.cookies].map(([k, v]) => `${k}=${v}`).join('; '),
+          'User-Agent': 'CampusPlus/0.1 (+https://github.com/thomas-pns/campus-plus)',
+        },
+      });
+    } catch (e) {
+      throw new ErreurAurion(`WebAurion injoignable (${(e as Error).name})`);
+    }
     this.garderCookies(res);
     const loc = res.headers.get('location');
-    if (res.status >= 300 && res.status < 400 && loc && sauts > 0) {
-      const suivant = loc.startsWith('http') ? new URL(loc).pathname + new URL(loc).search : loc;
-      return this.requete(suivant, {}, sauts - 1);
+    if (res.status >= 300 && res.status < 400 && loc) {
+      if (sauts <= 0) throw new ErreurAurion('Trop de redirections');
+      const cible = new URL(loc, new URL(chemin, this.base));
+      if (cible.origin !== new URL(this.base).origin) throw new ErreurAurion('Redirection hors de WebAurion');
+      return this.requete(cible.pathname + cible.search, {}, sauts - 1);
     }
-    const texte = await res.text();
-    if (!res.ok) throw new ErreurAurion(`HTTP ${res.status} sur ${chemin}`);
-    return { url: chemin, texte };
+    const html = await res.text();
+    if (!res.ok) throw new ErreurAurion(`HTTP ${res.status} sur ${new URL(chemin, this.base).pathname}`);
+    return { url: chemin, html };
   }
 
-  private memoriserPage(url: string, html: string) {
-    this.page = url;
-    const vs = cheerio.load(html)('input[name="javax.faces.ViewState"]').attr('value');
-    if (vs) this.viewState = vs;
+  private static estPageConnexion(p: Page) {
+    return /Login\.xhtml/.test(p.url) || /id="formulaireSpring"/.test(p.html);
   }
 
   /* ---------- Connexion ---------- */
 
   async connexion(identifiant: string, motDePasse: string) {
+    this.cookies.clear();
+    this.page = null;
+    this.viewStateAjax = null;
     await this.requete('/faces/Login.xhtml'); // pose le cookie de session
-    const corps = new URLSearchParams({ username: identifiant, password: motDePasse });
-    const { url, texte } = await this.requete('/login', {
+    const page = await this.requete('/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: corps,
+      body: new URLSearchParams({ username: identifiant, password: motDePasse }),
     });
-    if (/Login\.xhtml/.test(url) || /formulaireSpring/.test(texte)) {
-      throw new ErreurAurion('Identifiants refusés par WebAurion');
-    }
-    this.memoriserPage(url, texte);
+    if (AurionClient.estPageConnexion(page)) throw new ErreurIdentifiants('Identifiants refusés par WebAurion');
+    if (!/name="javax\.faces\.ViewState"/.test(page.html)) throw new ErreurAurion('Page d’accueil inattendue après connexion');
+    this.page = page;
+    this.viewStateAjax = null;
   }
 
-  /** Ouvre une entrée du menu latéral (Planning, Notes, Absences). */
-  private async ouvrirMenu(id: string) {
-    if (!this.viewState) throw new ErreurAurion('Pas connecté');
-    const corps = new URLSearchParams({
-      form: 'form',
-      'form:sidebar': 'form:sidebar',
-      'form:sidebar_menuid': id,
-      'javax.faces.ViewState': this.viewState,
+  /* ---------- Navigation par le menu latéral ---------- */
+
+  /** Tous les champs du formulaire principal de la page courante, comme les enverrait le navigateur. */
+  private formulaire(): { action: string; champs: URLSearchParams } {
+    if (!this.page) throw new ErreurAurion('Pas connecté');
+    const $ = cheerio.load(this.page.html);
+    const form = $('form#form').first();
+    const champs = new URLSearchParams();
+    form.find('input[name]').each((_, e) => {
+      const type = ($(e).attr('type') ?? 'text').toLowerCase();
+      if (['submit', 'button', 'image', 'file', 'checkbox', 'radio'].includes(type)) return;
+      champs.set($(e).attr('name')!, $(e).attr('value') ?? '');
     });
-    const { url, texte } = await this.requete('/faces/MainMenuPage.xhtml', {
+    if (!champs.has('form')) champs.set('form', 'form');
+    // Une réponse AJAX peut avoir renouvelé le jeton de la page : il prime sur celui du HTML.
+    const vs = this.viewStateAjax ?? champs.get('javax.faces.ViewState') ?? $('input[name="javax.faces.ViewState"]').first().attr('value');
+    if (!vs) throw new ErreurAurion('Session WebAurion expirée');
+    champs.set('javax.faces.ViewState', vs);
+    return { action: form.attr('action') ?? this.page.url, champs };
+  }
+
+  /** Numéro de l'entrée de menu portant ce libellé dans la page courante (les numéros peuvent varier selon le profil). */
+  private numeroMenu(entree: { libelle: string; secours: string }): string {
+    const $ = cheerio.load(this.page!.html);
+    for (const el of $('[onclick*="sidebar_menuid"]').toArray()) {
+      if ($(el).text().replace(/\s+/g, ' ').trim() !== entree.libelle) continue;
+      const m = ($(el).attr('onclick') ?? '').match(/sidebar_menuid'\s*:\s*'([^']+)'/);
+      if (m) return m[1];
+    }
+    return entree.secours;
+  }
+
+  private async ouvrirMenu(entree: { libelle: string; secours: string }): Promise<Page> {
+    const { action, champs } = this.formulaire();
+    champs.set('form:sidebar', 'form:sidebar');
+    champs.set('form:sidebar_menuid', this.numeroMenu(entree));
+    const page = await this.requete(action, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: corps,
+      body: champs,
     });
-    this.memoriserPage(url, texte);
-    return texte;
+    if (AurionClient.estPageConnexion(page)) throw new ErreurAurion('Session WebAurion expirée');
+    this.page = page;
+    this.viewStateAjax = null;
+    return page;
   }
 
   /* ---------- Planning ---------- */
 
   async planning(debut: Date, fin: Date): Promise<Evenement[]> {
-    const html = await this.ouvrirMenu(MENU.planning);
-    const $ = cheerio.load(html);
-    // L'id du composant « schedule » change d'une version à l'autre : on le lit dans la page.
-    // Dans la page : <div id="form:j_idt118" class="schedule"> (relevé le 10/11/2026).
+    const page = await this.ouvrirMenu(MENU.planning);
+    const $ = cheerio.load(page.html);
+    // Dans la page : <div id="form:j_idt118" class="schedule"> ; l'id change selon les versions, on le lit.
     const idSchedule = $('div.schedule[id]').first().attr('id')
-      ?? html.match(/["']Schedule["']\s*,\s*["']schedule["']\s*,\s*\{\s*id:\s*["']([^"']+)/)?.[1];
-    if (!idSchedule) throw new ErreurAurion('Composant planning introuvable');
+      ?? page.html.match(/["']Schedule["']\s*,\s*["']schedule["']\s*,\s*\{\s*id:\s*["']([^"']+)/)?.[1];
+    if (!idSchedule) throw new ErreurAurion('Composant planning introuvable (session expirée ou page modifiée)');
+    const nom = $('title').text().replace(/\s+/g, ' ').trim().match(/^Planning\s+(.+)$/)?.[1];
+    if (nom) this.nomEleve = nom;
 
+    const { action, champs } = this.formulaire();
     const corps = new URLSearchParams({
       'javax.faces.partial.ajax': 'true',
       'javax.faces.source': idSchedule,
@@ -136,9 +241,9 @@ export class AurionClient {
       [`${idSchedule}_start`]: String(debut.getTime()),
       [`${idSchedule}_end`]: String(fin.getTime()),
       form: 'form',
-      'javax.faces.ViewState': this.viewState,
+      'javax.faces.ViewState': champs.get('javax.faces.ViewState')!,
     });
-    const { texte } = await this.requete('/faces/Planning.xhtml', {
+    const reponse = await this.requete(action, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
@@ -147,35 +252,25 @@ export class AurionClient {
       },
       body: corps,
     });
-    return extraireEvenements(texte).map(lireEvenement);
+    if (!reponse.html.includes('"events"')) throw new ErreurAurion('Réponse planning inattendue');
+    const nouveau = reponse.html.match(/<update id="[^"]*javax\.faces\.ViewState[^"]*"><!\[CDATA\[([\s\S]*?)\]\]><\/update>/)?.[1];
+    if (nouveau) this.viewStateAjax = nouveau;
+    return extraireEvenements(reponse.html).map(lireEvenement);
   }
 
   /* ---------- Notes et absences ---------- */
 
-  private static lignes(html: string): string[][] {
-    const $ = cheerio.load(html);
-    return $('table tbody tr')
-      .toArray()
-      .map((tr) => $(tr).find('td').toArray().map((td) => $(td).text().replace(/\s+/g, ' ').trim()))
-      .filter((cells) => cells.length > 1);
-  }
-
   async notes(): Promise<Note[]> {
-    const html = await this.ouvrirMenu(MENU.notes);
-    return AurionClient.lignes(html).map(([semestre, module, cours, epreuve, coef, note, motif]) => ({
-      semestre, module, cours, epreuve,
-      coefficient: nombre(coef ?? ''),
-      note: nombre(note ?? ''),
-      motifAbsence: motif ?? '',
-    }));
+    const page = await this.ouvrirMenu(MENU.notes);
+    const notes = lireNotes(page.html);
+    if (!notes) throw new ErreurAurion('Tableau des notes introuvable');
+    return notes;
   }
 
   async absences(): Promise<Absence[]> {
-    const html = await this.ouvrirMenu(MENU.absences);
-    return AurionClient.lignes(html)
-      .filter((c) => !/aucune absence/i.test(c.join(' ')))
-      .map(([date, motif, duree, horaire, cours, intervenant, matiere]) => ({
-        date, motif, duree, horaire, cours, intervenant, matiere,
-      }));
+    const page = await this.ouvrirMenu(MENU.absences);
+    const absences = lireAbsences(page.html);
+    if (!absences) throw new ErreurAurion('Tableau des absences introuvable');
+    return absences;
   }
 }

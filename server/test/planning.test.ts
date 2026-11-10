@@ -18,6 +18,13 @@ describe('planning WebAurion', () => {
     expect(evts).toHaveLength(3);
   });
 
+  it('donne une clé stable, indépendante de l’id WebAurion', () => {
+    const encore = extraireEvenements(REPONSE.replace('"id":"a1"', '"id":"zz"')).map(lireEvenement);
+    expect(encore[0].id).toBe('zz');
+    expect(encore[0].cle).toBe(evts[0].cle);
+    expect(new Set(evts.map((e) => e.cle)).size).toBe(3);
+  });
+
   it('découpe le titre en champs', () => {
     expect(evts[0]).toMatchObject({ salles: ['F008'], groupe: '3ETI', matiere: 'Algèbre linéaire', type: 'Cours', categorie: 'cours' });
     expect(evts[1].intervenants).toEqual(['MARTIN Paul', 'DURAND Léa']);
@@ -35,6 +42,8 @@ describe('planning WebAurion', () => {
   it('trouve la salle de l’élève', () => {
     expect(salleExamenPour(evts[2], 'BERNARD--COSTE')).toEqual(['F004', 'F005']);
     expect(salleExamenPour(evts[2], 'Petit')).toEqual(['F008']);
+    expect(salleExamenPour(evts[2], 'Camille BERNARD--COSTE')).toEqual(['F004', 'F005']);
+    expect(salleExamenPour(evts[2], '')).toBeNull();
     expect(salleExamenPour(evts[1], 'Petit')).toBeNull();
   });
 

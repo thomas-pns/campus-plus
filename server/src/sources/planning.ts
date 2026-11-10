@@ -6,6 +6,8 @@
  * Les lignes du titre sont : salle(s), groupe, matière, type, intervenant(s), puis des remarques libres.
  */
 
+import { createHash } from 'node:crypto';
+
 export type Categorie =
   | 'cours' | 'td' | 'tp' | 'langues' | 'fhes' | 'examen' | 'sport'
   | 'autonomie' | 'presentation' | 'evenement' | 'reunion' | 'autre';
@@ -20,7 +22,10 @@ export interface EvenementBrut {
 }
 
 export interface Evenement {
+  /** Identifiant WebAurion : aléatoire, il change à chaque chargement. Ne pas s'en servir pour comparer. */
   id: string;
+  /** Clé stable (créneau + matière + type + groupe) : sert à comparer deux synchros. */
+  cle: string;
   debut: string;
   fin: string;
   categorie: Categorie;
@@ -62,6 +67,7 @@ export function lireEvenement(brut: EvenementBrut): Evenement {
   const [salles = '', groupe = '', matiere = '', type = '', intervenants = '', ...reste] = lignes;
   return {
     id: brut.id,
+    cle: createHash('sha256').update([brut.start, matiere, type, groupe].join('|')).digest('hex').slice(0, 16),
     debut: brut.start,
     fin: brut.end,
     categorie: categorieDe(brut.className),
@@ -153,10 +159,12 @@ export function lireRepartition(remarques: string[]): Repartition[] {
 }
 
 /** Renvoie les salles de l'élève pour un examen, ou null si la répartition ne permet pas de conclure. */
-export function salleExamenPour(evt: Evenement, nomEleve: string): string[] | null {
-  const nom = normaliserNom(nomEleve);
+export function salleExamenPour(evt: Pick<Evenement, 'remarques'>, nomEleve: string): string[] | null {
+  // Accepte « Prénom NOM » (format du titre WebAurion) comme un nom de famille seul.
+  const nom = nomDeFamille(nomEleve);
+  if (!nom) return null;
   for (const r of lireRepartition(evt.remarques)) {
-    if (nom.localeCompare(r.de) >= 0 && nom.localeCompare(r.a) <= 0) return r.salles;
+    if (nom >= r.de && nom <= r.a) return r.salles;
   }
   return null;
 }

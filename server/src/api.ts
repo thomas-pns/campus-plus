@@ -1,0 +1,178 @@
+/**
+ * API JSON du serveur Campus+ (consommée par l'appli web).
+ * Toutes les routes sauf /api/sante et /api/connexion demandent le cookie de session.
+ */
+import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
+import cookie from '@fastify/cookie';
+import { AurionClient, ErreurIdentifiants, type Absence, type Note } from './sources/aurion.js';
+import { salleExamenPour, type Evenement } from './sources/planning.js';
+import { moyennesParCours, type Alerte } from './alertes.js';
+import type { Compte, Comptes } from './comptes.js';
+import type { Depot } from './depot.js';
+import type { Synchro } from './synchro.js';
+
+const COOKIE = 'cp_session';
+const DUREE_COOKIE_S = 60 * 24 * 3600;
+const FENETRE_MS = 15 * 60_000;
+const ESSAIS_PAR_COMPTE = 5;
+const ESSAIS_PAR_ADRESSE = 20;
+const DELAI_SYNCHRO_MANUELLE_MS = 60_000;
+
+export interface Services {
+  depot: Depot;
+  comptes: Comptes;
+  synchro: Synchro;
+  fabriqueAurion: () => AurionClient;
+  cookieSecurise: boolean;
+  /** Vrai derrière un proxy inversé (cas du NAS) : l'adresse du visiteur est lue dans X-Forwarded-For. */
+  derriereProxy?: boolean;
+  journal?: boolean;
+  maintenant?: () => number;
+}
+
+/** Compteur d'essais de connexion ratés, par clé, sur une fenêtre glissante. */
+class Limiteur {
+  private essais = new Map<string, number[]>();
+  constructor(private maintenant: () => number) {}
+
+  private recents(cle: string): number[] {
+    const t = this.maintenant();
+    const liste = (this.essais.get(cle) ?? []).filter((x) => t - x < FENETRE_MS);
+    if (liste.length) this.essais.set(cle, liste);
+    else this.essais.delete(cle);
+    return liste;
+  }
+  bloque(cle: string, max: number) { return this.recents(cle).length >= max; }
+  noter(cle: string) { this.essais.set(cle, [...this.recents(cle), this.maintenant()]); }
+  oublier(cle: string) { this.essais.delete(cle); }
+}
+
+declare module 'fastify' {
+  interface FastifyRequest { compte: Compte | null }
+}
+
+export async function creerApp(s: Services): Promise<FastifyInstance> {
+  const maintenant = s.maintenant ?? Date.now;
+  const app = Fastify({ logger: s.journal ?? false, trustProxy: s.derriereProxy ?? false, bodyLimit: 16 * 1024 });
+  await app.register(cookie);
+  const limiteur = new Limiteur(maintenant);
+  app.decorateRequest('compte', null);
+
+  const exigerSession = async (req: FastifyRequest, rep: FastifyReply) => {
+    req.compte = await s.comptes.verifierSession(req.cookies[COOKIE]);
+    if (!req.compte) return rep.code(401).send({ erreur: 'Connexion requise' });
+  };
+  const optionsCookie = { path: '/', httpOnly: true, sameSite: 'strict' as const, secure: s.cookieSecurise };
+
+  app.setErrorHandler((err: Error & { statusCode?: number }, _req, rep) => {
+    const code = err.statusCode && err.statusCode >= 400 && err.statusCode < 500 ? err.statusCode : 500;
+    if (code === 500) app.log.error(err);
+    rep.code(code).send({ erreur: code === 500 ? 'Erreur du serveur' : 'Requête invalide' });
+  });
+
+  app.get('/api/sante', async () => ({ ok: true }));
+
+  /* ---------- Connexion ---------- */
+
+  app.post('/api/connexion', {
+    schema: {
+      body: {
+        type: 'object', required: ['identifiant', 'motDePasse'], additionalProperties: false,
+        properties: {
+          identifiant: { type: 'string', minLength: 1, maxLength: 100 },
+          motDePasse: { type: 'string', minLength: 1, maxLength: 200 },
+        },
+      },
+    },
+  }, async (req, rep) => {
+    const { identifiant, motDePasse } = req.body as { identifiant: string; motDePasse: string };
+    const id = s.comptes.idPour(identifiant);
+    const cles = [`compte:${id}`, `adresse:${req.ip}`] as const;
+    if (limiteur.bloque(cles[0], ESSAIS_PAR_COMPTE) || limiteur.bloque(cles[1], ESSAIS_PAR_ADRESSE)) {
+      return rep.code(429).send({ erreur: 'Trop d’essais. Réessaie dans un quart d’heure.' });
+    }
+    const client = s.fabriqueAurion();
+    try {
+      await client.connexion(identifiant.trim(), motDePasse);
+    } catch (e) {
+      if (e instanceof ErreurIdentifiants) {
+        cles.forEach((c) => limiteur.noter(c));
+        return rep.code(401).send({ erreur: 'Identifiant ou mot de passe CPE incorrect' });
+      }
+      return rep.code(502).send({ erreur: 'MyCPE ne répond pas pour le moment' });
+    }
+    limiteur.oublier(cles[0]);
+    await s.comptes.enregistrer(identifiant, motDePasse);
+    const jeton = await s.comptes.ouvrirSession(id);
+    // Première récupération avec la connexion déjà ouverte : l'élève a ses données tout de suite.
+    const etat = await s.synchro.synchroniser(id, client);
+    const compte = await s.comptes.lire(id);
+    rep.setCookie(COOKIE, jeton, { ...optionsCookie, maxAge: DUREE_COOKIE_S });
+    return { nom: compte?.nom ?? '', etat };
+  });
+
+  app.post('/api/deconnexion', async (req, rep) => {
+    await s.comptes.fermerSession(req.cookies[COOKIE]);
+    rep.clearCookie(COOKIE, optionsCookie);
+    return { ok: true };
+  });
+
+  /* ---------- Données de l'élève ---------- */
+
+  app.get('/api/moi', { preHandler: exigerSession }, async (req) => {
+    const c = req.compte!;
+    return { nom: c.nom, aReconnecter: c.aReconnecter, etat: await s.synchro.etat(c.id) };
+  });
+
+  app.get('/api/planning', {
+    preHandler: exigerSession,
+    schema: {
+      querystring: {
+        type: 'object', additionalProperties: false,
+        properties: { debut: { type: 'string', maxLength: 40 }, fin: { type: 'string', maxLength: 40 } },
+      },
+    },
+  }, async (req, rep) => {
+    const c = req.compte!;
+    const q = req.query as { debut?: string; fin?: string };
+    const debut = q.debut ? Date.parse(q.debut) : -Infinity;
+    const fin = q.fin ? Date.parse(q.fin) : Infinity;
+    if (Number.isNaN(debut) || Number.isNaN(fin)) return rep.code(400).send({ erreur: 'Dates invalides' });
+    const tous = (await s.depot.lire<Evenement[]>(c.id, 'planning')) ?? [];
+    const evenements = tous
+      .filter((e) => Date.parse(e.fin) >= debut && Date.parse(e.debut) <= fin)
+      .map((e) => (e.categorie === 'examen' ? { ...e, salleExamen: salleExamenPour(e, c.nom) } : e));
+    return { evenements };
+  });
+
+  app.get('/api/notes', { preHandler: exigerSession }, async (req) => {
+    const notes = (await s.depot.lire<Note[]>(req.compte!.id, 'notes')) ?? [];
+    return { notes, moyennes: moyennesParCours(notes) };
+  });
+
+  app.get('/api/absences', { preHandler: exigerSession }, async (req) => ({
+    absences: (await s.depot.lire<Absence[]>(req.compte!.id, 'absences')) ?? [],
+  }));
+
+  app.get('/api/alertes', { preHandler: exigerSession }, async (req) => ({
+    alertes: (await s.depot.lire<Alerte[]>(req.compte!.id, 'alertes')) ?? [],
+  }));
+
+  /** « Tirer pour actualiser » : au plus une synchro manuelle par minute. */
+  app.post('/api/synchro', { preHandler: exigerSession }, async (req, rep) => {
+    const c = req.compte!;
+    if (c.aReconnecter) return rep.code(409).send({ erreur: 'Reconnecte-toi avec ton compte CPE' });
+    const etat = await s.synchro.etat(c.id);
+    if (etat.derniereTentative && maintenant() - Date.parse(etat.derniereTentative) < DELAI_SYNCHRO_MANUELLE_MS) return { etat };
+    return { etat: await s.synchro.synchroniser(c.id) };
+  });
+
+  /** Efface le compte et toutes ses données du serveur. */
+  app.delete('/api/compte', { preHandler: exigerSession }, async (req, rep) => {
+    await s.comptes.supprimer(req.compte!.id);
+    rep.clearCookie(COOKIE, optionsCookie);
+    return { ok: true };
+  });
+
+  return app;
+}

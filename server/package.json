@@ -5,13 +5,18 @@
   "type": "module",
   "description": "Serveur Campus+ : synchro WebAurion, Moodle et mails, à héberger soi-même (NAS).",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "tsx watch --env-file=../.env src/index.ts",
+    "essai": "tsx src/essai.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
-    "cheerio": "^1.0.0"
+    "@fastify/cookie": "^11.1.5",
+    "cheerio": "^1.0.0",
+    "fastify": "^5.12.8"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

@@ -1,4 +1,4 @@
-# Campus+ — cahier des charges (v0.2, 10/11/2026)
+# Campus+ — cahier des charges (v0.3, 10/11/2026)
 
 App web (PWA) open source pour les élèves de CPE Lyon : planning, cours, scolarité, mails triés par IA, devoirs.
 Auto-hébergée (au départ sur un NAS perso), pour un cercle d'amis puis plus large.
@@ -50,9 +50,9 @@ Le NAS reste la référence ; s'il est activé, il copie l'arborescence rangée 
 
 ## 6. Étapes
 
-1. ✅ Reverse des sources, maquettes, squelette du dépôt, client WebAurion + lecture du planning (testée sur données fictives).
-2. Serveur : comptes chiffrés, synchro WebAurion, API JSON pour le front. Test réel sur le NAS.
-3. Moodle : jeton mobile via CAS, synchro des fichiers sur le NAS.
-4. Front PWA d'après les maquettes (Aujourd'hui, Planning, Cours, Scolarité).
+1. ✅ Reverse des sources, maquettes, squelette du dépôt.
+2. ✅ Serveur : client WebAurion, comptes et données chiffrés, sessions, synchro automatique et à la demande, alertes, API JSON. Testé contre un faux WebAurion ; reste l'essai en vrai (`npm run essai`, puis le NAS).
+3. Front PWA d'après les maquettes (Aujourd'hui, Planning, Scolarité), image Docker, mise en ligne sur le NAS.
+4. Moodle : jeton mobile via CAS, synchro des fichiers sur le NAS, écran Cours.
 5. Mails PARTAGE + tri IA + devoirs.
 6. Visite guidée, réglages, notifications, puis OneDrive.
