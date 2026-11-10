@@ -1,0 +1,13 @@
+:root {
+  --cpe: #035899; --fond: #F2F4F8; --carte: #FFFFFF; --texte: #0B1220; --doux: #5B6475;
+  --cours: #1A5FB4; --cours-bg: #E6F0FC; --td: #0B7468; --td-bg: #E2F5F2;
+  --tp: #A8480A; --tp-bg: #FDEEE3; --langues: #6A3CC0; --langues-bg: #F0EAFB;
+  --fhes: #93306E; --fhes-bg: #F9E8F2; --examen: #B3261E; --examen-bg: #FDE8E8;
+  --rayon: 20px;
+  --haut: env(safe-area-inset-top, 0px); --bas: env(safe-area-inset-bottom, 0px);
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; overflow: hidden; overscroll-behavior: none; background: var(--fond); }
+body { font-family: Inter, -apple-system, system-ui, sans-serif; color: var(--texte); }
+/* Pas de bloc « fixed » plein écran : sur iPhone (iOS 26/27), ça laissait une bande vide en bas. */
+#app { position: relative; height: 100%; display: flex; flex-direction: column; }

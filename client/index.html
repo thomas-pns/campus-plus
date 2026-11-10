@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#F2F4F8">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <!-- iOS 26/27 : avec « black-translucent », l'appli installée sur l'écran d'accueil calcule mal
+       sa hauteur (bande vide en bas). Correctif repris d'All-In Club et Parlotte :
+       barre d'état « default », pas de bloc fixed plein écran, appli à 100 % en CSS. -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Campus+">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <title>Campus+</title>
+  <link rel="stylesheet" href="/base.css">
+  <script>
+    if (navigator.standalone || matchMedia('(display-mode: standalone)').matches) document.documentElement.classList.add('standalone');
+  </script>
+</head>
+<body>
+  <div id="app"></div>
+</body>
+</html>
