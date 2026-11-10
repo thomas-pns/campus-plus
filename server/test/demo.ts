@@ -14,6 +14,7 @@ import { Comptes } from '../src/comptes.js';
 import { Synchro } from '../src/synchro.js';
 import { AurionClient } from '../src/sources/aurion.js';
 import { creerApp } from '../src/api.js';
+import { Notifications } from '../src/notifications.js';
 
 const jourPlus = (lundi: Date, n: number) => {
   const d = new Date(lundi.getTime() + n * 86_400_000);
@@ -63,8 +64,9 @@ const coffre = new Coffre(randomBytes(32));
 const depot = new Depot(await mkdtemp(join(tmpdir(), 'campus-demo-')), coffre);
 const comptes = new Comptes(depot, coffre);
 const fabriqueAurion = () => new AurionClient(aurionBase);
-const synchro = new Synchro(depot, comptes, fabriqueAurion, { minutes: 15 });
-const app = await creerApp({ depot, comptes, synchro, fabriqueAurion, cookieSecurise: false, dossierClient: process.env.CLIENT_DIR ?? '../client/dist' });
+const notifications = await Notifications.demarrer(depot, coffre, await mkdtemp(join(tmpdir(), 'campus-demo-vapid-')));
+const synchro = new Synchro(depot, comptes, fabriqueAurion, { minutes: 15, surNouvellesAlertes: (id, a) => notifications.alertes(id, a) });
+const app = await creerApp({ depot, comptes, synchro, notifications, fabriqueAurion, cookieSecurise: false, dossierClient: process.env.CLIENT_DIR ?? '../client/dist' });
 const port = Number(process.env.PORT ?? 8787);
 await app.listen({ port, host: '127.0.0.1' });
 console.log(`Démo : http://localhost:${port}  (identifiant « demo », mot de passe « demo »)`);

@@ -239,3 +239,12 @@ h1 { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.
   .onglets { justify-content: center; grid-template-columns: repeat(4, 140px); }
   .feuille { border-radius: 26px; margin-bottom: 40px; }
 }
+
+/* ---------- Interrupteurs (réglages) ---------- */
+.interrupteur { width: 51px; height: 31px; flex: none; border-radius: 16px; padding: 2px; background: #D5DAE2; display: flex; justify-content: flex-start; transition: background .15s; }
+.interrupteur span { width: 27px; height: 27px; border-radius: 14px; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,.2); }
+.interrupteur.actif { background: #34C759; justify-content: flex-end; }
+.sous-rangee { padding-left: 56px; min-height: 48px; }
+.sous-rangee .rangee-libelle { font-size: 15px; }
+.explication { display: flex; gap: 12px; padding: 14px; color: var(--cpe); }
+.explication p { color: var(--texte); font-size: 14px; line-height: 1.45; }

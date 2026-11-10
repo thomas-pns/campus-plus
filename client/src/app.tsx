@@ -36,7 +36,8 @@ export function App() {
   const [donnees, setDonnees] = useState<Donnees | null>(api.lireCopie);
   const [phase, setPhase] = useState<'demarrage' | 'connexion' | 'appli'>(donnees ? 'appli' : 'demarrage');
   const [horsLigne, setHorsLigne] = useState(false);
-  const [onglet, setOnglet] = useState<Onglet>('aujourdhui');
+  // Ouverture depuis une notification : l'adresse se termine par #alertes.
+  const [onglet, setOnglet] = useState<Onglet>(() => (location.hash === '#alertes' ? 'alertes' : 'aujourdhui'));
   const [reglages, setReglages] = useState(false);
   const [fiche, setFiche] = useState<Evenement | null>(null);
   const [vuesJusqua, setVuesJusqua] = useState(api.alertesVuesJusqua);
@@ -84,6 +85,20 @@ export function App() {
   }, [recharger]);
 
   const fermerFiche = useCallback(() => setFiche(null), []);
+
+  // Notification touchée alors que l'appli était déjà ouverte : aller aux alertes, données à jour.
+  useEffect(() => {
+    if (location.hash) history.replaceState(null, '', location.pathname);
+    const recu = (ev: MessageEvent) => {
+      if (ev.data?.type !== 'ouvrir-alertes') return;
+      setReglages(false);
+      setFiche(null);
+      setOnglet('alertes');
+      void recharger();
+    };
+    navigator.serviceWorker?.addEventListener('message', recu);
+    return () => navigator.serviceWorker?.removeEventListener('message', recu);
+  }, [recharger]);
 
   const choisir = (o: Onglet) => {
     setOnglet(o);

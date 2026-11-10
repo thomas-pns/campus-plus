@@ -31,6 +31,8 @@ export interface OptionsSynchro {
   minutes: number;
   maintenant?: () => Date;
   journal?: (message: string) => void;
+  /** Appelé avec les alertes qui viennent d'apparaître (notifications). Une erreur ici n'interrompt pas la synchro. */
+  surNouvellesAlertes?: (id: string, alertes: Alerte[]) => Promise<void>;
 }
 
 export class Synchro {
@@ -94,7 +96,11 @@ export class Synchro {
       if (nouvelles.length) {
         const anciennes = (await this.depot.lire<Alerte[]>(id, 'alertes')) ?? [];
         const connues = new Set(anciennes.map((a) => a.id));
-        await this.depot.ecrire(id, 'alertes', [...nouvelles.filter((a) => !connues.has(a.id)), ...anciennes].slice(0, ALERTES_MAX));
+        const inedites = nouvelles.filter((a) => !connues.has(a.id));
+        await this.depot.ecrire(id, 'alertes', [...inedites, ...anciennes].slice(0, ALERTES_MAX));
+        if (inedites.length && this.options.surNouvellesAlertes) {
+          await this.options.surNouvellesAlertes(id, inedites).catch((e) => this.options.journal?.(`Notifications en échec : ${(e as Error).message}`));
+        }
       }
       await this.depot.ecrire(id, 'planning', planning);
       await this.depot.ecrire(id, 'notes', notes);

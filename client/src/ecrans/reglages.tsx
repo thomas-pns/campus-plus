@@ -2,6 +2,7 @@ import { useState } from 'preact/hooks';
 import type { Donnees } from '../types';
 import { ilYA, initialesDe } from '../dates';
 import { Icone } from '../composants';
+import { ReglagesNotifications } from './notifications';
 
 interface Props {
   d: Donnees;
@@ -58,6 +59,8 @@ export function Reglages({ d, maintenant, horsLigne, surRetour, surActualiser, s
           {occupe === 'actualiser' ? 'Actualisation…' : 'Actualiser maintenant'}
         </button>
       </section>
+
+      <ReglagesNotifications horsLigne={horsLigne} />
 
       <section class="bloc">
         <h2 class="titre-groupe">Compte</h2>

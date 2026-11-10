@@ -93,3 +93,56 @@ export function marquerAlertesVues(date: string): void {
     localStorage.setItem(CLE_ALERTES_VUES, date);
   } catch { /* rien à faire */ }
 }
+
+/* ---------- Notifications ---------- */
+
+export interface ReglagesNotifications {
+  cle: string;
+  types: Record<Alerte['type'], boolean>;
+  appareils: number;
+}
+
+export const lireNotifications = () => appel<ReglagesNotifications>('GET', '/api/notifications');
+export const changerTypes = (types: Partial<Record<Alerte['type'], boolean>>) =>
+  appel<{ types: ReglagesNotifications['types'] }>('PUT', '/api/notifications/types', types);
+export const essaiNotification = () => appel<{ envoyes: number }>('POST', '/api/notifications/essai');
+
+/** Où en sont les notifications sur cet appareil. */
+export type EtatAppareil = 'impossible' | 'installer' | 'refusees' | 'actives' | 'inactives';
+
+const surIPhone = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
+const installee = () => (navigator as { standalone?: boolean }).standalone === true || matchMedia('(display-mode: standalone)').matches;
+
+export async function etatAppareil(): Promise<EtatAppareil> {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || typeof Notification === 'undefined') {
+    return surIPhone() && !installee() ? 'installer' : 'impossible';
+  }
+  if (Notification.permission === 'denied') return 'refusees';
+  const reg = await navigator.serviceWorker.getRegistration();
+  const ab = await reg?.pushManager.getSubscription();
+  return ab && Notification.permission === 'granted' ? 'actives' : 'inactives';
+}
+
+const versOctets = (s: string) => {
+  const brut = atob((s + '='.repeat((4 - (s.length % 4)) % 4)).replace(/-/g, '+').replace(/_/g, '/'));
+  return Uint8Array.from(brut, (c) => c.charCodeAt(0));
+};
+
+/** Demande l'autorisation (doit suivre un geste de l'utilisateur) et abonne cet appareil. */
+export async function activerNotifications(cle: string): Promise<EtatAppareil> {
+  if ((await Notification.requestPermission()) !== 'granted') return Notification.permission === 'denied' ? 'refusees' : 'inactives';
+  const reg = await navigator.serviceWorker.ready;
+  const ab = (await reg.pushManager.getSubscription()) ?? (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: versOctets(cle) }));
+  await appel('POST', '/api/notifications/abonnement', { abonnement: ab.toJSON() });
+  return 'actives';
+}
+
+export async function desactiverNotifications(): Promise<EtatAppareil> {
+  const reg = await navigator.serviceWorker.getRegistration();
+  const ab = await reg?.pushManager.getSubscription();
+  if (ab) {
+    await appel('DELETE', '/api/notifications/abonnement', { endpoint: ab.endpoint }).catch(() => undefined);
+    await ab.unsubscribe();
+  }
+  return 'inactives';
+}

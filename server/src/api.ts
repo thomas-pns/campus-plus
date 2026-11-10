@@ -12,6 +12,7 @@ import { moyennesParCours, type Alerte } from './alertes.js';
 import type { Compte, Comptes } from './comptes.js';
 import type { Depot } from './depot.js';
 import type { Synchro } from './synchro.js';
+import { abonnementValide, TYPES_PAR_DEFAUT, type Notifications } from './notifications.js';
 
 const COOKIE = 'cp_session';
 const DUREE_COOKIE_S = 60 * 24 * 3600;
@@ -24,6 +25,7 @@ export interface Services {
   depot: Depot;
   comptes: Comptes;
   synchro: Synchro;
+  notifications?: Notifications;
   fabriqueAurion: () => AurionClient;
   cookieSecurise: boolean;
   /** Vrai derrière un proxy inversé (cas du NAS) : l'adresse du visiteur est lue dans X-Forwarded-For. */
@@ -144,13 +146,13 @@ export async function creerApp(s: Services): Promise<FastifyInstance> {
 
   /* ---------- Données de l'élève ---------- */
 
-  app.get('/api/moi', { preHandler: exigerSession }, async (req) => {
+  app.get('/api/moi', { onRequest: exigerSession }, async (req) => {
     const c = req.compte!;
     return { nom: c.nom, aReconnecter: c.aReconnecter, etat: await s.synchro.etat(c.id) };
   });
 
   app.get('/api/planning', {
-    preHandler: exigerSession,
+    onRequest: exigerSession,
     schema: {
       querystring: {
         type: 'object', additionalProperties: false,
@@ -170,21 +172,21 @@ export async function creerApp(s: Services): Promise<FastifyInstance> {
     return { evenements };
   });
 
-  app.get('/api/notes', { preHandler: exigerSession }, async (req) => {
+  app.get('/api/notes', { onRequest: exigerSession }, async (req) => {
     const notes = (await s.depot.lire<Note[]>(req.compte!.id, 'notes')) ?? [];
     return { notes, moyennes: moyennesParCours(notes) };
   });
 
-  app.get('/api/absences', { preHandler: exigerSession }, async (req) => ({
+  app.get('/api/absences', { onRequest: exigerSession }, async (req) => ({
     absences: (await s.depot.lire<Absence[]>(req.compte!.id, 'absences')) ?? [],
   }));
 
-  app.get('/api/alertes', { preHandler: exigerSession }, async (req) => ({
+  app.get('/api/alertes', { onRequest: exigerSession }, async (req) => ({
     alertes: (await s.depot.lire<Alerte[]>(req.compte!.id, 'alertes')) ?? [],
   }));
 
   /** « Tirer pour actualiser » : au plus une synchro manuelle par minute. */
-  app.post('/api/synchro', { preHandler: exigerSession }, async (req, rep) => {
+  app.post('/api/synchro', { onRequest: exigerSession }, async (req, rep) => {
     const c = req.compte!;
     if (c.aReconnecter) return rep.code(409).send({ erreur: 'Reconnecte-toi avec ton compte CPE' });
     const etat = await s.synchro.etat(c.id);
@@ -192,8 +194,47 @@ export async function creerApp(s: Services): Promise<FastifyInstance> {
     return { etat: await s.synchro.synchroniser(c.id) };
   });
 
+  /* ---------- Notifications ---------- */
+
+  const n = s.notifications;
+  if (n) {
+    const typesSchema = { type: 'object', additionalProperties: false, properties: Object.fromEntries(Object.keys(TYPES_PAR_DEFAUT).map((t) => [t, { type: 'boolean' }])) };
+
+    app.get('/api/notifications', { onRequest: exigerSession }, async (req) => {
+      const r = await n.reglages(req.compte!.id);
+      return { cle: n.clePublique, types: r.types, appareils: r.abonnements.length };
+    });
+
+    app.post('/api/notifications/abonnement', {
+      onRequest: exigerSession,
+      schema: { body: { type: 'object', required: ['abonnement'], additionalProperties: false, properties: { abonnement: { type: 'object' } } } },
+    }, async (req, rep) => {
+      const { abonnement } = req.body as { abonnement: unknown };
+      if (!abonnementValide(abonnement)) return rep.code(400).send({ erreur: 'Abonnement invalide' });
+      await n.abonner(req.compte!.id, abonnement);
+      return { ok: true };
+    });
+
+    app.delete('/api/notifications/abonnement', {
+      onRequest: exigerSession,
+      schema: { body: { type: 'object', required: ['endpoint'], additionalProperties: false, properties: { endpoint: { type: 'string', maxLength: 1000 } } } },
+    }, async (req) => {
+      await n.desabonner(req.compte!.id, (req.body as { endpoint: string }).endpoint);
+      return { ok: true };
+    });
+
+    app.put('/api/notifications/types', { onRequest: exigerSession, schema: { body: typesSchema } }, async (req) => ({
+      types: await n.changerTypes(req.compte!.id, req.body as Record<string, boolean>),
+    }));
+
+    /** Notification d'essai, pour vérifier que tout marche sur l'appareil. */
+    app.post('/api/notifications/essai', { onRequest: exigerSession }, async (req) => ({
+      envoyes: await n.envoyer(req.compte!.id, [{ titre: 'Campus+', corps: 'Les notifications marchent : tu seras prévenu des changements de salle et des nouvelles notes.', tag: 'essai' }]),
+    }));
+  }
+
   /** Efface le compte et toutes ses données du serveur. */
-  app.delete('/api/compte', { preHandler: exigerSession }, async (req, rep) => {
+  app.delete('/api/compte', { onRequest: exigerSession }, async (req, rep) => {
     await s.comptes.supprimer(req.compte!.id);
     rep.clearCookie(COOKIE, optionsCookie);
     return { ok: true };

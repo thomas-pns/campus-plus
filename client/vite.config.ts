@@ -32,6 +32,8 @@ export default defineConfig({
         // L'API n'est jamais mise en cache par le service worker : les données sont gardées par l'appli elle-même.
         navigateFallbackDenylist: [/^\/api\//],
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // Réception des notifications (voir public/push-sw.js).
+        importScripts: ['push-sw.js'],
       },
     }),
   ],
