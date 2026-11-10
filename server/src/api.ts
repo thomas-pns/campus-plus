@@ -6,6 +6,7 @@ import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest }
 import cookie from '@fastify/cookie';
 import statique from '@fastify/static';
 import { resolve } from 'node:path';
+import { Readable } from 'node:stream';
 import { AurionClient, ErreurIdentifiants, type Absence, type Note } from './sources/aurion.js';
 import { salleExamenPour, type Evenement } from './sources/planning.js';
 import { moyennesParCours, type Alerte } from './alertes.js';
@@ -224,14 +225,19 @@ export async function creerApp(s: Services): Promise<FastifyInstance> {
     app.get('/api/fichiers/:cle', { onRequest: exigerSession }, async (req, rep) => {
       const { cle } = req.params as { cle: string };
       const trouve = await cours.fichier(req.compte!.id, cle);
-      if (!trouve) return rep.code(404).send({ erreur: 'Fichier introuvable' });
+      if (!trouve) return rep.code(404).send({ erreur: 'Fichier introuvable ou e-campus injoignable' });
       const nom = trouve.fichier.nom.replace(/[\r\n"]/g, '');
       rep.header('Content-Type', /^[\w.+-]+\/[\w.+-]+$/.test(trouve.fichier.type) ? trouve.fichier.type : 'application/octet-stream');
       rep.header('Content-Disposition', `inline; filename="${nom.replace(/[^\x20-\x7e]/g, '_')}"; filename*=UTF-8''${encodeURIComponent(nom)}`);
       rep.header('Cache-Control', 'private, max-age=86400');
       // Un fichier de cours ne doit jamais exécuter de script dans l'appli.
       rep.header('Content-Security-Policy', "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox");
-      return rep.send(trouve.octets);
+      if ('octets' in trouve) return rep.send(trouve.octets);
+      // Transmis directement depuis e-campus, sans passer par le disque.
+      const taille = trouve.flux.headers.get('content-length');
+      if (taille) rep.header('Content-Length', taille);
+      rep.header('Cache-Control', 'private, no-store');
+      return rep.send(Readable.fromWeb(trouve.flux.body as never));
     });
   }
 

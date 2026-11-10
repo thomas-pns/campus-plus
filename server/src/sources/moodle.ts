@@ -299,21 +299,7 @@ export class MoodleClient {
 
   /** Télécharge un fichier (adresse webservice/pluginfile.php) ; refuse au-delà de `max` octets. */
   async telecharger(jeton: string, adresse: string, max: number): Promise<Buffer> {
-    const url = new URL(adresse);
-    if (url.origin !== new URL(this.adresses.moodle).origin) throw new ErreurMoodle('Fichier hors d’e-campus');
-    url.searchParams.set('token', jeton);
-    let res: Response;
-    try {
-      res = await fetch(url, { signal: AbortSignal.timeout(this.delaiMs * 4), headers: { 'User-Agent': 'CampusPlus/0.1' } });
-    } catch (e) {
-      throw new ErreurMoodle(`Téléchargement impossible (${(e as Error).name})`);
-    }
-    if (!res.ok) throw new ErreurMoodle(`HTTP ${res.status} au téléchargement`);
-    if ((res.headers.get('content-type') ?? '').includes('application/json')) {
-      const json = (await res.json()) as { errorcode?: string };
-      if (json.errorcode === 'invalidtoken') throw new ErreurJeton('Jeton e-campus refusé');
-      throw new ErreurMoodle(`Fichier refusé par e-campus (${json.errorcode ?? 'erreur'})`);
-    }
+    const res = await this.ouvrir(jeton, adresse, this.delaiMs * 4);
     if (Number(res.headers.get('content-length') ?? 0) > max) throw new ErreurMoodle('Fichier trop gros');
     const morceaux: Buffer[] = [];
     let total = 0;
@@ -323,5 +309,25 @@ export class MoodleClient {
       morceaux.push(Buffer.from(m));
     }
     return Buffer.concat(morceaux);
+  }
+
+  /** Ouvre un fichier e-campus sans le lire : sert à le transmettre tel quel (gros fichiers non copiés). */
+  async ouvrir(jeton: string, adresse: string, delai = 10 * 60_000): Promise<Response> {
+    const url = new URL(adresse);
+    if (url.origin !== new URL(this.adresses.moodle).origin) throw new ErreurMoodle('Fichier hors d’e-campus');
+    url.searchParams.set('token', jeton);
+    let res: Response;
+    try {
+      res = await fetch(url, { signal: AbortSignal.timeout(delai), headers: { 'User-Agent': 'CampusPlus/0.1' } });
+    } catch (e) {
+      throw new ErreurMoodle(`Téléchargement impossible (${(e as Error).name})`);
+    }
+    if (!res.ok) throw new ErreurMoodle(`HTTP ${res.status} au téléchargement`);
+    if ((res.headers.get('content-type') ?? '').includes('application/json')) {
+      const json = (await res.json()) as { errorcode?: string };
+      if (json.errorcode === 'invalidtoken') throw new ErreurJeton('Jeton e-campus refusé');
+      throw new ErreurMoodle(`Fichier refusé par e-campus (${json.errorcode ?? 'erreur'})`);
+    }
+    return res;
   }
 }

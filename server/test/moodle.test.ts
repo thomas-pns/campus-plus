@@ -95,7 +95,8 @@ describe('synchro des cours', () => {
     for (const f of fichiers) expect((await readFile(join(dossier, 'fichiers', f))).toString('latin1')).not.toContain('%PDF');
 
     const cle = (await synchro.cours(id))[0].sections[1].elements[0].fichiers[0].cle;
-    expect((await synchro.fichier(id, cle))?.octets.toString()).toBe('%PDF-1.4 cours MQ');
+    const trouve = await synchro.fichier(id, cle);
+    expect(trouve && 'octets' in trouve && trouve.octets.toString()).toBe('%PDF-1.4 cours MQ');
     expect(await synchro.fichier(id, 'f'.repeat(32))).toBeNull();
     expect(await synchro.fichier(id, '../../etc/passwd')).toBeNull();
 
@@ -127,10 +128,21 @@ describe('synchro des cours', () => {
     expect(faux.connexionsCas).toBe(2);
   });
 
-  it('ignore les fichiers trop gros sans échouer', async () => {
+  it('ne copie pas les fichiers trop gros, mais les transmet à la demande depuis e-campus', async () => {
     const petit = new SynchroCours(depot, comptes, new Coffre(CLE_TEST), dossier, () => new MoodleClient({ moodle: faux.base, cas: faux.base }), { tailleMax: 14 });
     const etat = await petit.synchroniser(id);
     expect(etat).toMatchObject({ erreur: null, ignores: 1 }); // seul « cours-mq.pdf » (17 octets) dépasse
+    expect(await readdir(join(dossier, 'fichiers'))).toHaveLength(3);
+    const cle = (await petit.cours(id))[0].sections[1].elements[0].fichiers[0].cle;
+    const avant = faux.telechargements;
+    const trouve = await petit.fichier(id, cle);
+    expect(trouve && 'flux' in trouve && (await trouve.flux.text())).toBe('%PDF-1.4 cours MQ');
+    expect(faux.telechargements).toBe(avant + 1);
+    expect(await readdir(join(dossier, 'fichiers'))).toHaveLength(3); // rien d'écrit sur le disque
+
+    faux.revoquerJetons(); // jeton expiré : on en redemande un et ça passe
+    const encore = await petit.fichier(id, cle);
+    expect(encore && 'flux' in encore && (await encore.flux.text())).toBe('%PDF-1.4 cours MQ');
   });
 
   it('s’arrête si le CAS refuse le mot de passe, jusqu’à la prochaine connexion', async () => {
@@ -163,7 +175,8 @@ describe('API des cours', () => {
     const coffre = new Coffre(CLE_TEST);
     const depot = new Depot(dossier, coffre);
     const comptes = new Comptes(depot, coffre);
-    const cours = new SynchroCours(depot, comptes, coffre, dossier, () => new MoodleClient(adresses));
+    // tailleMax 14 : « cours-mq.pdf » (17 octets) n'est pas copié et passe par e-campus à la demande.
+    const cours = new SynchroCours(depot, comptes, coffre, dossier, () => new MoodleClient(adresses), { tailleMax: 14 });
     const fabriqueAurion = () => new AurionClient(baseAurion);
     const synchro = new Synchro(depot, comptes, fabriqueAurion, { minutes: 15, cours });
     const app = await creerApp({ depot, comptes, synchro, cours, fabriqueAurion, cookieSecurise: true });
@@ -187,6 +200,12 @@ describe('API des cours', () => {
       expect(fichier.headers['content-type']).toBe('application/pdf');
       expect(fichier.headers['content-disposition']).toContain('inline; filename="cours-mq.pdf"');
       expect(fichier.headers['content-security-policy']).toContain('sandbox');
+      expect(fichier.headers['cache-control']).toBe('private, no-store'); // transmis, pas en cache
+
+      const copie = liste.cours[0].sections[2].elements[0].fichiers[0];
+      const td = await app.inject({ method: 'GET', url: `/api/fichiers/${copie.cle}`, cookies });
+      expect(td.body).toBe('%PDF-1.4 TD1');
+      expect(td.headers['cache-control']).toBe('private, max-age=86400'); // copie du serveur
       expect((await app.inject({ method: 'GET', url: `/api/fichiers/${'0'.repeat(32)}`, cookies })).statusCode).toBe(404);
       expect((await app.inject({ method: 'GET', url: `/api/fichiers/${f.cle}` })).statusCode).toBe(401);
 

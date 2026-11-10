@@ -99,7 +99,7 @@ function ListeCours({ d, maintenant, vus, surOuvrirCours }: { d: Donnees; mainte
       ))}
       <p class="petit-texte">
         Copiés sur le serveur {etat?.derniereSynchro ? ilYA(maintenant - Date.parse(etat.derniereSynchro)) : ''}.
-        {etat?.ignores ? ` ${etat.ignores} fichier${etat.ignores > 1 ? 's' : ''} trop gros reste${etat.ignores > 1 ? 'nt' : ''} sur e-campus.` : ''}
+        {etat?.ignores ? ` ${etat.ignores} fichier${etat.ignores > 1 ? 's' : ''} trop gros ${etat.ignores > 1 ? 'sont pris' : 'est pris'} directement sur e-campus quand tu l'ouvres.` : ''}
         {etat?.erreur ? ` Dernière tentative en échec : ${etat.erreur}` : ''}
       </p>
     </>

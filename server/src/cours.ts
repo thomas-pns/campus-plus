@@ -182,21 +182,32 @@ export class SynchroCours {
   }
 
   /** Le fichier demandé, seulement s'il fait partie des cours de cet élève. */
-  async fichier(id: string, cle: string): Promise<{ fichier: Fichier; octets: Buffer } | null> {
+  async fichier(id: string, cle: string): Promise<{ fichier: Fichier; octets: Buffer } | { fichier: Fichier; flux: Response } | null> {
     if (!CLE_VALIDE.test(cle)) return null;
+    let fichier: Fichier | undefined;
     for (const c of await this.cours(id)) {
       for (const s of c.sections) {
-        for (const e of s.elements) {
-          const fichier = e.fichiers.find((f) => f.cle === cle);
-          if (!fichier) continue;
-          try {
-            return { fichier, octets: this.coffre.dechiffrerOctets(await readFile(this.cheminFichier(cle))) };
-          } catch {
-            return null;
-          }
-        }
+        for (const e of s.elements) fichier ??= e.fichiers.find((f) => f.cle === cle);
       }
     }
-    return null;
+    if (!fichier) return null;
+    try {
+      return { fichier, octets: this.coffre.dechiffrerOctets(await readFile(this.cheminFichier(cle))) };
+    } catch {
+      // Pas de copie sur le serveur (trop gros, ou pas encore copié) : on le prend sur e-campus à la volée.
+    }
+    const client = this.fabrique();
+    const ouvrir = async (neuf: boolean) => {
+      const jeton = await this.jeton(id, client, neuf);
+      if (!jeton) return null;
+      return client.ouvrir(jeton, fichier!.adresse);
+    };
+    try {
+      const flux = await ouvrir(false).catch((e) => (e instanceof ErreurJeton ? ouvrir(true) : Promise.reject(e)));
+      return flux ? { fichier, flux } : null;
+    } catch (e) {
+      this.options.journal?.(`Fichier non transmis (${fichier.nom}) : ${(e as Error).message}`);
+      return null;
+    }
   }
 }
