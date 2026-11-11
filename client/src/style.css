@@ -33,7 +33,7 @@ a { color: var(--lien); }
 
 /* Pas de bloc « fixed » plein écran : sur iPhone (iOS 26/27), ça laissait une bande vide en bas. */
 #app { position: relative; height: 100%; display: flex; flex-direction: column; overflow: hidden; }
-.ecran { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; -webkit-overflow-scrolling: touch; }
+.ecran { flex: 1; min-height: 0; min-width: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: contain; -webkit-overflow-scrolling: touch; }
 .contenu { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px;
   padding: calc(18px + var(--haut)) calc(16px + var(--droite)) 28px calc(16px + var(--gauche)); }
 .demarrage { display: flex; align-items: center; justify-content: center; color: var(--lien); }
@@ -311,7 +311,8 @@ h1 { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.
 .feuille-formulaire { display: flex; flex-direction: column; gap: 14px; }
 
 /* ---------- Mails ---------- */
-.filtres { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.filtres { display: flex; gap: 8px; overflow-x: auto; padding: 0 16px 2px; margin: 0 -16px; min-width: 0; scrollbar-width: none; overscroll-behavior-x: contain; }
+.filtres::-webkit-scrollbar { display: none; }
 .filtres button { flex: none; height: 36px; padding: 0 14px; border-radius: 18px; background: var(--carte); font-size: 14px; font-weight: 600; }
 .filtres button.actif { background: var(--cpe); color: #fff; }
 .mail .pastilles { gap: 6px; }

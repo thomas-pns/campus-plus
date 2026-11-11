@@ -200,7 +200,9 @@ export class SynchroMails {
   }
 
   async mails(id: string): Promise<Mail[]> {
-    return (await this.etat(id)).actif ? ((await this.depot.lire<Mail[]>(id, 'mails')) ?? []) : [];
+    if (!(await this.etat(id)).actif) return [];
+    // Les mails gardés avant la correction du lien pointaient vers une page de PARTAGE qui n'existe pas.
+    return ((await this.depot.lire<Mail[]>(id, 'mails')) ?? []).map((m) => ({ ...m, lien: `${this.base}/` }));
   }
 
   /** Active ou désactive la lecture des mails ; désactiver efface les mails gardés. */
