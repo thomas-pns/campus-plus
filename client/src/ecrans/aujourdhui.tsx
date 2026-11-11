@@ -1,4 +1,5 @@
-import type { Donnees, Evenement } from '../types';
+import type { Donnees, Evenement, Note } from '../types';
+import { useState } from 'preact/hooks';
 import { ajouterJours, dans, heureDe, initialesDe, jourDe, jourEnToutesLettres, jourParis, prenomDe } from '../dates';
 import { aLaUne, CATEGORIES, duJour, examensAVenir, prochainJourAvecCours, salleDe, salleDeduite, titreDe } from '../planning';
 import { Avatar, Icone, LigneEvenement, LigneExamen, Vide } from '../composants';
@@ -81,9 +82,12 @@ export function Aujourdhui({ d, maintenant, surOuvrir, surReglages, surAller, su
       {accueilExamens && examens.length > 0 && (
         <section class="bloc" aria-label="Examens à venir">
           <h2 class="titre-bloc">Examens à venir</h2>
-          <div class="carte liste">
-            {examens.slice(0, 3).map((e) => <LigneExamen e={e} maintenant={maintenant} surOuvrir={surOuvrir} />)}
-          </div>
+          <ProchainExamen e={examens[0]} maintenant={maintenant} surOuvrir={surOuvrir} />
+          {examens.length > 1 && (
+            <div class="carte liste">
+              {examens.slice(1, 3).map((e) => <LigneExamen e={e} maintenant={maintenant} surOuvrir={surOuvrir} />)}
+            </div>
+          )}
         </section>
       )}
 
@@ -104,20 +108,8 @@ export function Aujourdhui({ d, maintenant, surOuvrir, surReglages, surAller, su
       )}
 
       {accueilTuiles && <section class="tuiles" aria-label="Nouveautés">
-        <button type="button" class="tuile" onClick={() => surAller('scolarite')}>
-          <span class="tuile-titre">Dernière note</span>
-          {derniereNote && cacherNote ? (
-            <>
-              <span class="tuile-valeur">••<small>/20</small></span>
-              <span class="tuile-texte">{derniereNote.cours} · touche pour voir</span>
-            </>
-          ) : derniereNote ? (
-            <>
-              <span class="tuile-valeur">{String(derniereNote.note).replace('.', ',')}<small>/20</small></span>
-              <span class="tuile-texte">{derniereNote.cours} · {derniereNote.epreuve}</span>
-            </>
-          ) : <span class="tuile-texte">Aucune note publiée pour l'instant</span>}
-        </button>
+        <TuileNote note={derniereNote} surprise={cacherNote} nouvelle={d.alertes.some((a) => a.type === 'note' && maintenant - Date.parse(a.date) < SEPT_JOURS)}
+          surVoir={() => surAller('scolarite')} />
         <button type="button" class="tuile" onClick={() => surAller('alertes')}>
           <span class="tuile-titre">Alertes</span>
           <span class={`tuile-valeur ${alertesRecentes.length ? 'bleu' : ''}`}>{alertesRecentes.length}</span>
@@ -151,6 +143,62 @@ function Une({ e, enCours, jour, maintenant, surOuvrir }: { e: Evenement; enCour
         <span class="une-case large">
           {salleDeduite(e) ? <><small>Répartition par nom</small><span>parmi {e.salles.join(' / ')}</span></> : <><small>Groupe</small><span>{e.groupe || '—'}</span></>}
         </span>
+      </span>
+    </button>
+  );
+}
+
+const CLE_NOTE_VUE = 'campus-plus:note-decouverte';
+const cleNote = (n: Note) => `${n.cours}|${n.epreuve}|${n.note}`;
+
+/**
+ * Tuile de la dernière note. En « surprise », une note pas encore découverte s'annonce sans sa
+ * valeur ; un appui la révèle sur place, un second ouvre la Scolarité.
+ */
+function TuileNote({ note, surprise, nouvelle, surVoir }: { note: Note | undefined; surprise: boolean; nouvelle: boolean; surVoir: () => void }) {
+  const [vue, setVue] = useState(() => {
+    try { return !!note && localStorage.getItem(CLE_NOTE_VUE) === cleNote(note); } catch { return false; }
+  });
+  const cachee = !!note && surprise && !vue;
+  const decouvrir = () => {
+    if (!note) return;
+    try { localStorage.setItem(CLE_NOTE_VUE, cleNote(note)); } catch { /* rien */ }
+    setVue(true);
+  };
+  return (
+    <button type="button" class={`tuile ${cachee ? 'tuile-surprise' : ''}`} onClick={cachee ? decouvrir : surVoir}
+      aria-label={cachee ? `${nouvelle ? 'Nouvelle note' : 'Dernière note'} en ${note!.cours} : toucher pour la découvrir` : undefined}>
+      <span class="tuile-titre">{nouvelle ? 'Nouvelle note' : 'Dernière note'}</span>
+      {!note ? <span class="tuile-texte">Aucune note publiée pour l'instant</span> : cachee ? (
+        <>
+          <span class="tuile-cachee"><Icone nom="note" taille={16} epaisseur={2.4} />Découvrir</span>
+          <span class="tuile-texte">{note.cours} · {note.epreuve}</span>
+        </>
+      ) : (
+        <>
+          <span class={`tuile-valeur ${surprise ? 'revele' : ''}`}>{String(note.note).replace('.', ',')}<small>/20</small></span>
+          <span class="tuile-texte">{note.cours} · {note.epreuve}</span>
+        </>
+      )}
+    </button>
+  );
+}
+
+/** Le prochain examen, mis en avant : compte à rebours, date, heure et salle. */
+function ProchainExamen({ e, maintenant, surOuvrir }: { e: Evenement; maintenant: number; surOuvrir: (e: Evenement) => void }) {
+  const jours = Math.round((Date.parse(jourDe(e.debut)) - Date.parse(jourParis(maintenant))) / 86_400_000);
+  const salle = salleDe(e);
+  return (
+    <button type="button" class="examen-une" onClick={() => surOuvrir(e)}>
+      <span class="examen-une-haut">
+        <span class="examen-etiquette">Prochain examen</span>
+        <span class="examen-compte">{jours <= 0 ? 'Aujourd’hui' : jours === 1 ? 'Demain' : `dans ${jours} jours`}</span>
+      </span>
+      <span class="examen-titre">{titreDe(e)}</span>
+      <span class="examen-cases">
+        <span class="examen-case"><small>Date</small><strong>{jourEnToutesLettres(jourDe(e.debut))}</strong></span>
+        <span class="examen-case"><small>Heure</small><strong>{heureDe(e.debut)}</strong></span>
+        <span class="examen-case"><small>{salleDeduite(e) ? 'Ta salle' : 'Salle'}</small><strong>{salle || '—'}</strong></span>
       </span>
     </button>
   );

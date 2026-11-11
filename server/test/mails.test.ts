@@ -202,7 +202,8 @@ describe('mails de bout en bout', () => {
 describe('tri d’après de vrais mails de l’école', () => {
   const vide = new Map<string, string[]>();
   it('reconnaît les mails d’e-campus', () => {
-    expect(categorieDe({ deNom: 'Serge MAZAURIC (via CPe-Campus)', deAdresse: 'ne-pas-repondre@cpe.fr', sujet: '[MOODLE]  26_27_3ETI_05_MSP_101_C : Nouvelle version du cours' }, null)).toBe('prof');
+    expect(categorieDe({ deNom: 'Serge MAZAURIC (via CPe-Campus)', deAdresse: 'ne-pas-repondre@cpe.fr', sujet: '[MOODLE]  26_27_3ETI_05_MSP_101_C : Nouvelle version du cours' }, 'mazauric')).toBe('prof');
+    expect(categorieDe({ deNom: 'Jean AUTRE (via CPe-Campus)', deAdresse: 'ne-pas-repondre@cpe.fr', sujet: '[MOODLE]  26_27_3ETI_05_MSP_101_C : Annonce' }, null)).toBe('ecole');
     expect(categorieDe({ deNom: 'Merci de ne pas répondre à ce courriel (via CPe-Campus)', deAdresse: 'ne-pas-repondre@cpe.fr', sujet: '[MOODLE]  En retard : RAPPORT TP1' }, null)).toBe('autre');
     expect(categorieDe({ deNom: 'Mohamed MERGUI (via CPe-Campus)', deAdresse: 'ne-pas-repondre@cpe.fr', sujet: '[MOODLE]  Nouveau contenu de Logique Numérique (S5) * 26_27_3ETI_05_ELPH_001_C' }, null)).toBe('autre');
     expect(matiereCampus('Le devoir RAPPORT TP1 du cours Logique Numérique (S5) * 26_27_3ETI')).toBe('Logique Numérique');

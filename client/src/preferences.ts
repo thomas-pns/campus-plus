@@ -1,6 +1,6 @@
 /** Préférences d'affichage gardées sur l'appareil. */
 export interface Preferences {
-  /** Cache la valeur de la dernière note sur l'accueil (pas de spoil). */
+  /** « Note en surprise » : une nouvelle note s'annonce sans sa valeur, révélée d'un appui. */
   cacherNote: boolean;
   /** Blocs affichés sur l'accueil. */
   accueilExamens: boolean;
@@ -11,7 +11,7 @@ export interface Preferences {
 }
 
 const CLE = 'campus-plus:preferences';
-const DEFAUT: Preferences = { cacherNote: false, accueilExamens: true, accueilAFaire: true, accueilTuiles: true, photo: true };
+const DEFAUT: Preferences = { cacherNote: false, accueilExamens: true, accueilAFaire: true, accueilTuiles: true, photo: false };
 
 export function lirePreferences(): Preferences {
   try {

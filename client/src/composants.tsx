@@ -15,6 +15,7 @@ const TRACES = {
   gauche: 'M15 6l-6 6l6 6',
   droite: 'M9 6l6 6l-6 6',
   bas: 'M6 9l6 6l6-6',
+  lune: 'M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z',
   partager: 'M12 3v12M8 7l4-4l4 4M6 11H5v9h14v-9h-1',
   telecharger: 'M12 4v11M8 11l4 4l4-4M5 20h14',
   actualiser: 'M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5',

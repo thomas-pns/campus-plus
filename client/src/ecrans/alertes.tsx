@@ -34,7 +34,11 @@ interface Props {
 const RUBRIQUES = [{ id: 'alertes', nom: 'Alertes' }, { id: 'mails', nom: 'Mails' }] as const;
 
 export function Alertes({ d, maintenant, vuesJusqua, surOuvrir, surAller, surOuvrirCours, surDevoirs, horsLigne, surChangeMails, surCreerDevoir }: Props) {
-  const [rubrique, setRubrique] = useState<'alertes' | 'mails'>('alertes');
+  // Ouverte depuis les réglages (« Mails PARTAGE triés ») : directement sur les mails.
+  const [rubrique, setRubrique] = useState<'alertes' | 'mails'>(() => {
+    try { if (sessionStorage.getItem('campus-plus:boite') === 'mails') { sessionStorage.removeItem('campus-plus:boite'); return 'mails'; } } catch { /* rien */ }
+    return 'alertes';
+  });
   return (
     <>
       <Entete surtitre={rubrique === 'mails' ? 'PARTAGE, triés' : 'Changements détectés'} titre="Boîte" />

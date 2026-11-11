@@ -132,8 +132,8 @@ export function categorieDe(de: { deNom: string; deAdresse: string; sujet?: stri
   if (viaCampus(de.deNom)) {
     // Rappels automatiques (« À rendre le… », « En retard ») et « Nouveau contenu » : déjà dans l'appli.
     if (/^merci de ne pas repondre/i.test(simple(de.deNom)) || /nouveau contenu de/.test(sujet)) return 'autre';
-    // Annonce d'un forum de cours : c'est un prof qui écrit.
-    return 'prof';
+    // Annonce d'un forum de cours : « Prof » seulement si c'est un prof de ton planning.
+    return prof ? 'prof' : 'ecole';
   }
   if (ANNONCES.test(sujet)) return 'autre';
   if (prof) return 'prof';
@@ -216,7 +216,7 @@ export class SynchroMails {
     const mails = ((await this.depot.lire<Mail[]>(id, 'mails')) ?? []).map((m) => {
       if ((m.expediteur ?? m.adresse.toLowerCase()) !== cle) return m;
       const prof = profDe({ deNom: m.de, deAdresse: m.adresse }, profs);
-      const cat = categorie ?? (cle.includes('#') ? (m.de === 'e-campus' ? 'autre' : 'prof') : categorieDe({ deNom: m.de, deAdresse: m.adresse, sujet: m.sujet }, prof));
+      const cat = categorie ?? (cle.includes('#') ? (m.de === 'e-campus' ? 'autre' : prof ? 'prof' : 'ecole') : categorieDe({ deNom: m.de, deAdresse: m.adresse, sujet: m.sujet }, prof));
       const aLire = cat !== 'autre' && !m.texte;
       return {
         ...m, categorie: cat, corrige: !!categorie,

@@ -227,7 +227,8 @@ export function App() {
           <Reglages d={d} maintenant={maintenant} horsLigne={horsLigne} surRetour={() => setReglages(false)} surActualiser={actualiser}
             surDeconnexion={async () => { await api.deconnexion().catch(() => undefined); versConnexion(); }}
             surSuppression={async () => { await api.supprimerCompte(); versConnexion(); }}
-            surVisite={() => { setReglages(false); setOnglet('aujourdhui'); setVisite(true); }} />
+            surVisite={() => { setReglages(false); setOnglet('aujourdhui'); setVisite(true); }}
+            surMails={() => { try { sessionStorage.setItem('campus-plus:boite', 'mails'); } catch { /* rien */ } setReglages(false); choisir('alertes'); }} />
         ) : onglet === 'aujourdhui' ? (
           <Aujourdhui d={d} maintenant={maintenant} surOuvrir={setFiche} surReglages={() => setReglages(true)} surAller={choisir}
             surDevoirs={() => setPage('devoirs')} surCocher={cocher} />

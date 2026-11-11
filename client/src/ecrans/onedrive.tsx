@@ -1,11 +1,12 @@
 /** Section « OneDrive » des réglages : copie des cours, rangés, dans le OneDrive de l'élève. */
+import type { ComponentChildren } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import * as api from '../api';
 import { ilYA } from '../dates';
 import { Icone } from '../composants';
 import { Interrupteur } from './notifications';
 
-export function ReglagesOneDrive({ horsLigne, maintenant }: { horsLigne: boolean; maintenant: number }) {
+export function ReglagesOneDrive({ horsLigne, maintenant, avant }: { horsLigne: boolean; maintenant: number; avant?: ComponentChildren }) {
   const [disponible, setDisponible] = useState(false);
   const [etat, setEtat] = useState<api.EtatOneDrive | null>(null);
   const [occupe, setOccupe] = useState(false);
@@ -37,12 +38,15 @@ export function ReglagesOneDrive({ horsLigne, maintenant }: { horsLigne: boolean
     }
   };
 
-  if (horsLigne || !disponible || !etat) return null;
+  if (horsLigne || !disponible || !etat) {
+    return avant ? <section class="bloc"><h2 class="titre-groupe">Intégrations</h2><div class="carte liste">{avant}</div></section> : null;
+  }
   const c = etat.connexion;
 
   return (
     <section class="bloc">
-      <h2 class="titre-groupe">OneDrive</h2>
+      <h2 class="titre-groupe">Intégrations</h2>
+      {avant && <div class="carte liste">{avant}</div>}
       {c ? (
         <div class="carte connexion-od">
           <p>Sur la page Microsoft, tape ce code puis connecte-toi avec ton compte CPE (ou un compte Microsoft perso) :</p>
