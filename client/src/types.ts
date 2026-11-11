@@ -103,6 +103,8 @@ export interface EtatCours {
   derniereSynchro: string | null;
   erreur: string | null;
   ignores: number;
+  /** Copie des fichiers en cours sur le serveur. */
+  progression?: { faits: number; total: number } | null;
 }
 
 export interface Echeance {

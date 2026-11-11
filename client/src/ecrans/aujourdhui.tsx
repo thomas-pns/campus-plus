@@ -30,7 +30,7 @@ export function Aujourdhui({ d, maintenant, surOuvrir, surReglages, surAller, su
   const derniereNote = [...d.notes].reverse().find((n) => n.note !== null);
   const alertesRecentes = d.alertes.filter((a) => maintenant - Date.parse(a.date) < SEPT_JOURS);
   const examens = examensAVenir(d.planning, maintenant);
-  const { cacherNote } = lirePreferences();
+  const { cacherNote, accueilExamens, accueilAFaire, accueilTuiles } = lirePreferences();
   const urgents = d.afaire ? aVenir(lignes(d.afaire.echeances, d.afaire.taches, maintenant), maintenant) : [];
 
   return (
@@ -74,7 +74,7 @@ export function Aujourdhui({ d, maintenant, surOuvrir, surReglages, surAller, su
         )}
       </section>
 
-      {examens.length > 0 && (
+      {accueilExamens && examens.length > 0 && (
         <section class="bloc" aria-label="Examens à venir">
           <h2 class="titre-bloc">Examens à venir</h2>
           <div class="carte liste">
@@ -83,7 +83,7 @@ export function Aujourdhui({ d, maintenant, surOuvrir, surReglages, surAller, su
         </section>
       )}
 
-      {d.afaire && (
+      {accueilAFaire && d.afaire && (
         <section class="bloc" aria-label="À faire">
           <div class="titre-avec-lien">
             <h2 class="titre-bloc">À faire</h2>
@@ -99,7 +99,7 @@ export function Aujourdhui({ d, maintenant, surOuvrir, surReglages, surAller, su
         </section>
       )}
 
-      <section class="tuiles" aria-label="Nouveautés">
+      {accueilTuiles && <section class="tuiles" aria-label="Nouveautés">
         <button type="button" class="tuile" onClick={() => surAller('scolarite')}>
           <span class="tuile-titre">Dernière note</span>
           {derniereNote && cacherNote ? (
@@ -119,7 +119,7 @@ export function Aujourdhui({ d, maintenant, surOuvrir, surReglages, surAller, su
           <span class={`tuile-valeur ${alertesRecentes.length ? 'bleu' : ''}`}>{alertesRecentes.length}</span>
           <span class="tuile-texte">{alertesRecentes.length ? alertesRecentes[0].titre : 'Rien de neuf cette semaine'}</span>
         </button>
-      </section>
+      </section>}
     </>
   );
 }

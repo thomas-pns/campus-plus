@@ -2,10 +2,14 @@
 export interface Preferences {
   /** Cache la valeur de la dernière note sur l'accueil (pas de spoil). */
   cacherNote: boolean;
+  /** Blocs affichés sur l'accueil. */
+  accueilExamens: boolean;
+  accueilAFaire: boolean;
+  accueilTuiles: boolean;
 }
 
 const CLE = 'campus-plus:preferences';
-const DEFAUT: Preferences = { cacherNote: false };
+const DEFAUT: Preferences = { cacherNote: false, accueilExamens: true, accueilAFaire: true, accueilTuiles: true };
 
 export function lirePreferences(): Preferences {
   try {

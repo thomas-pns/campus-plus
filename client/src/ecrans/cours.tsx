@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'preact/hooks';
+import { useEffect, useMemo, useState } from 'preact/hooks';
+import { createPortal } from 'preact/compat';
 import type { Cours, Donnees, ElementCours, Evenement, Fichier } from '../types';
 import { correspond, fichiersDe, nomCourt, parType, poleDe, semestreDe, sigle, taille, trierSemestres, typeFichier } from '../cours';
 import { affichageCours, choisirAffichage, type Affichage } from '../api';
@@ -16,21 +17,22 @@ interface Props {
   surOuvrirCours: (id: number | null) => void;
   surAjouterDevoir: (c: Cours) => void;
   surOuvrir: (e: Evenement) => void;
+  surRecharger: () => Promise<void>;
 }
 
-export function CoursEcran({ d, maintenant, vus, coursOuvert, surOuvrirCours, surAjouterDevoir, surOuvrir }: Props) {
+export function CoursEcran({ d, maintenant, vus, coursOuvert, surOuvrirCours, surAjouterDevoir, surOuvrir, surRecharger }: Props) {
   const cours = d.cours ?? [];
   const ouvert = coursOuvert !== null ? cours.find((c) => c.id === coursOuvert) : undefined;
   if (ouvert) {
     const examens = examensAVenir(d.planning, maintenant, 120).filter((e) => memeMatiere(e.matiere, ouvert.nom));
     return <DetailCours c={ouvert} vus={vus} examens={examens} maintenant={maintenant} surOuvrir={surOuvrir} surRetour={() => surOuvrirCours(null)} surAjouterDevoir={() => surAjouterDevoir(ouvert)} />;
   }
-  return <ListeCours d={d} maintenant={maintenant} vus={vus} surOuvrirCours={surOuvrirCours} />;
+  return <ListeCours d={d} maintenant={maintenant} vus={vus} surOuvrirCours={surOuvrirCours} surRecharger={surRecharger} />;
 }
 
 const estNouveau = (f: Fichier, vus: Set<string> | null) => vus !== null && !vus.has(f.cle);
 
-function ListeCours({ d, maintenant, vus, surOuvrirCours }: { d: Donnees; maintenant: number; vus: Set<string> | null; surOuvrirCours: (id: number) => void }) {
+function ListeCours({ d, maintenant, vus, surOuvrirCours, surRecharger }: { d: Donnees; maintenant: number; vus: Set<string> | null; surOuvrirCours: (id: number) => void; surRecharger: () => Promise<void> }) {
   const cours = d.cours ?? [];
   const semestres = useMemo(() => trierSemestres(cours.map(semestreDe)), [cours]);
   // Par défaut, le semestre qui a le plus de fichiers récents, sinon le premier.
@@ -44,15 +46,7 @@ function ListeCours({ d, maintenant, vus, surOuvrirCours }: { d: Donnees; mainte
   if (d.cours === null) return (<><Entete titre="Cours" /><Vide icone="livre" titre="Bientôt disponible" texte="Le serveur ne gère pas encore les cours e-campus : il sera mis à jour automatiquement." /></>);
 
   const etat = d.etatCours;
-  if (!cours.length) {
-    return (
-      <>
-        <Entete surtitre="e-campus" titre="Cours" />
-        <Vide icone="livre" titre={etat?.erreur ? 'Cours indisponibles' : 'Récupération en cours…'}
-          texte={etat?.erreur ?? 'Le serveur copie tes cours et leurs fichiers depuis e-campus. Tire vers le bas dans une minute pour actualiser.'} />
-      </>
-    );
-  }
+  if (!cours.length) return <Recuperation etat={etat} surRecharger={surRecharger} />;
 
   if (recherche.trim()) {
     const resultats = cours.flatMap((c) => c.sections.flatMap((s) => s.elements.flatMap((e) => {
@@ -139,16 +133,122 @@ function LigneElement({ e, sous }: { e: ElementCours; sous?: string }) {
   );
 }
 
-function LigneFichier({ f, sous, nouveau }: { f: Fichier; sous?: string; nouveau: boolean }) {
+/** Première copie des cours : barre de progression, et l'écran se met à jour tout seul. */
+function Recuperation({ etat, surRecharger }: { etat: Donnees['etatCours']; surRecharger: () => Promise<void> }) {
+  const p = etat?.progression;
+  useEffect(() => {
+    if (etat?.erreur) return;
+    const minuteur = setInterval(() => void surRecharger().catch(() => undefined), 5000);
+    return () => clearInterval(minuteur);
+  }, [etat?.erreur]);
+  if (etat?.erreur) {
+    return (<><Entete surtitre="e-campus" titre="Cours" /><Vide icone="livre" titre="Cours indisponibles" texte={etat.erreur} /></>);
+  }
+  const part = p && p.total ? Math.round((100 * p.faits) / p.total) : null;
   return (
-    <a class="rangee" href={`/api/fichiers/${f.cle}`} target="_blank" rel="noopener">
-      <span class="vignette c-examen petite" aria-hidden="true"><Icone nom="fichier" taille={18} /></span>
-      <span class="rangee-texte">
-        <strong>{f.nom}</strong>
-        <span>{[sous, typeFichier(f), taille(f.taille)].filter(Boolean).join(' · ')}</span>
-      </span>
-      {nouveau && <span class="pastille-nouveau">NOUVEAU</span>}
-    </a>
+    <>
+      <Entete surtitre="e-campus" titre="Cours" />
+      <Vide icone="livre" titre="Récupération en cours…"
+        texte={p ? `Copie des fichiers depuis e-campus : ${p.faits} sur ${p.total}. Ça peut prendre quelques minutes la première fois.` : 'Le serveur se connecte à e-campus et liste tes cours.'} />
+      <div class="progression" role="progressbar" aria-label="Copie des cours" aria-valuemin={0} aria-valuemax={100} aria-valuenow={part ?? undefined}>
+        <span class={part === null ? 'indetermine' : ''} style={part === null ? undefined : { width: `${Math.max(part, 3)}%` }} />
+      </div>
+    </>
+  );
+}
+
+function LigneFichier({ f, sous, nouveau }: { f: Fichier; sous?: string; nouveau: boolean }) {
+  const [fiche, setFiche] = useState(false);
+  return (
+    <div class="rangee rangee-fichier">
+      <a class="rangee-lien" href={`/api/fichiers/${f.cle}`} target="_blank" rel="noopener">
+        <span class="vignette c-examen petite" aria-hidden="true"><Icone nom="fichier" taille={18} /></span>
+        <span class="rangee-texte">
+          <strong>{f.nom}</strong>
+          <span>{[sous, typeFichier(f), taille(f.taille)].filter(Boolean).join(' · ')}</span>
+        </span>
+        {nouveau && <span class="pastille-nouveau">NOUVEAU</span>}
+      </a>
+      <button type="button" class="action-fichier" aria-label={`Partager ou enregistrer ${f.nom}`} onClick={() => setFiche(true)}>
+        <Icone nom="partager" taille={19} epaisseur={2.2} />
+      </button>
+      {fiche && <FicheFichier f={f} surFermer={() => setFiche(false)} />}
+    </div>
+  );
+}
+
+/** Taille au-delà de laquelle on ne prépare pas le fichier d'avance (il n'est pas gardé sur le serveur). */
+const PREPARATION_MAX = 60 * 1024 * 1024;
+
+/** Panneau d'un fichier : l'ouvrir, le partager (AirDrop, reMarkable, Fichiers…) ou l'enregistrer. */
+function FicheFichier({ f, surFermer }: { f: Fichier; surFermer: () => void }) {
+  const adresse = `/api/fichiers/${f.cle}`;
+  const partageable = typeof navigator.share === 'function' && typeof navigator.canShare === 'function';
+  const [fichier, setFichier] = useState<File | null>(null);
+  const [etat, setEtat] = useState<'' | 'preparation' | 'erreur'>('');
+
+  // Le fichier est préparé dès l'ouverture : sur iPhone, le partage doit suivre directement un appui.
+  const preparer = async () => {
+    setEtat('preparation');
+    try {
+      const rep = await fetch(adresse, { credentials: 'same-origin' });
+      if (!rep.ok) throw new Error();
+      const blob = await rep.blob();
+      const prepare = new File([blob], f.nom, { type: blob.type || f.type || 'application/octet-stream' });
+      setFichier(prepare);
+      setEtat('');
+      return prepare;
+    } catch {
+      setEtat('erreur');
+      return null;
+    }
+  };
+  useEffect(() => { if (partageable && f.taille <= PREPARATION_MAX) void preparer(); }, []);
+  useEffect(() => {
+    const touche = (ev: KeyboardEvent) => ev.key === 'Escape' && surFermer();
+    document.addEventListener('keydown', touche);
+    return () => document.removeEventListener('keydown', touche);
+  }, []);
+
+  const partager = async () => {
+    const pret = fichier ?? (await preparer());
+    if (!pret) return;
+    if (!navigator.canShare({ files: [pret] })) { location.href = `${adresse}?telecharger=1`; return; }
+    try {
+      await navigator.share({ files: [pret], title: f.nom });
+    } catch (e) {
+      // Annulé par l'élève : rien à faire. Sinon (geste expiré), on propose l'enregistrement.
+      if ((e as Error).name !== 'AbortError') setEtat('erreur');
+    }
+  };
+
+  return createPortal(
+    <div class="voile" onClick={(ev) => ev.target === ev.currentTarget && surFermer()}>
+      <section class="feuille" role="dialog" aria-modal="true" aria-label={f.nom}>
+        <div class="feuille-haut">
+          <span class="pastille c-examen">{typeFichier(f) || 'Fichier'} · {taille(f.taille)}</span>
+          <button type="button" class="rond" onClick={surFermer} aria-label="Fermer"><Icone nom="fermer" taille={18} epaisseur={2.4} /></button>
+        </div>
+        <h2 class="nom-fichier">{f.nom}</h2>
+        <div class="actions-fichier">
+          <a class="bouton large" href={adresse} target="_blank" rel="noopener"><Icone nom="fichier" taille={18} epaisseur={2.4} />&nbsp;Ouvrir</a>
+          {partageable && (
+            <button type="button" class="bouton secondaire large" disabled={etat === 'preparation'} onClick={() => void partager()}>
+              <Icone nom="partager" taille={18} epaisseur={2.4} />&nbsp;{etat === 'preparation' ? 'Préparation…' : 'Partager…'}
+            </button>
+          )}
+          <a class="bouton secondaire large" href={`${adresse}?telecharger=1`} download={f.nom}>
+            <Icone nom="telecharger" taille={18} epaisseur={2.4} />&nbsp;Enregistrer sur l’appareil
+          </a>
+        </div>
+        <p class="petit-texte">
+          {etat === 'erreur' ? 'Le partage n’a pas marché : utilise « Enregistrer », puis partage depuis l’appli Fichiers.'
+            : partageable ? '« Partager » ouvre le menu du téléphone : AirDrop, Fichiers, reMarkable, GoodNotes, Notability…'
+            : '« Enregistrer » le met dans tes téléchargements.'}
+        </p>
+      </section>
+    </div>,
+    document.getElementById('app') ?? document.body,
   );
 }
 

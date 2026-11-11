@@ -23,6 +23,10 @@
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; height: 100%; overflow: hidden; overscroll-behavior: none; background: var(--fond); }
 body { font-family: Inter, -apple-system, system-ui, sans-serif; color: var(--texte); font-size: 16px; line-height: 1.35; -webkit-text-size-adjust: 100%; }
+/* Comme une appli : pas de sélection de texte ni de menu « Copier » sur les boutons au moindre appui long. */
+#app { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+#app input, #app textarea, .mail-texte, .remarques, .details, .selectionnable { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
+#app a, #app img { -webkit-user-drag: none; }
 button, input { font: inherit; color: inherit; }
 button { cursor: pointer; border: 0; background: none; padding: 0; text-align: inherit; }
 button:disabled { opacity: .55; cursor: default; }
@@ -406,3 +410,19 @@ a.bouton { text-decoration: none; }
 .visite-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 12px; }
 .visite-actions .lien-bouton { margin-right: auto; }
 @media (prefers-reduced-motion: reduce) { .visite-bulle, .visite-trou { animation: none; transition: none; } }
+
+/* ---------- Fichiers : partager, enregistrer ---------- */
+.rangee-fichier { padding: 0; gap: 0; }
+.rangee-lien { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 10px 4px 10px 14px; min-height: 52px; text-decoration: none; color: inherit; }
+.action-fichier { flex: none; width: 48px; align-self: stretch; display: grid; place-items: center; color: var(--lien); }
+.nom-fichier { overflow-wrap: anywhere; }
+.actions-fichier { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+.actions-fichier .bouton { display: inline-flex; align-items: center; justify-content: center; }
+
+/* ---------- Barre de progression ---------- */
+.progression { height: 8px; margin: 4px 24px 0; border-radius: 4px; background: var(--gris); overflow: hidden; }
+.progression span { display: block; height: 100%; border-radius: 4px; background: var(--cpe); transition: width .6s ease; }
+.progression span.indetermine { width: 35%; animation: va-et-vient 1.3s ease-in-out infinite; }
+@keyframes va-et-vient { from { transform: translateX(-100%); } to { transform: translateX(290%); } }
+@media (prefers-reduced-motion: reduce) { .progression span.indetermine { animation: none; width: 100%; opacity: .4; } }
+.sous-titre-groupe { font-size: 13px; font-weight: 600; color: var(--doux); margin: 4px 4px -4px; }

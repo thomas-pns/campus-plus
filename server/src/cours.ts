@@ -21,6 +21,8 @@ export interface EtatCours {
   echecs: number;
   /** Fichiers trop gros ou refusés : listés, mais pas copiés. */
   ignores: number;
+  /** Copie en cours (pas gardé sur le disque) : fichiers traités sur le total. */
+  progression?: { faits: number; total: number } | null;
 }
 
 interface Acces {
@@ -112,6 +114,12 @@ export class SynchroCours {
     }
   }
 
+  private progressions = new Map<string, { faits: number; total: number }>();
+
+  progression(id: string): { faits: number; total: number } | null {
+    return this.progressions.get(id) ?? null;
+  }
+
   private async executer(id: string): Promise<EtatCours> {
     const precedent = await this.etat(id);
     const t = this.maintenant();
@@ -128,7 +136,7 @@ export class SynchroCours {
         cours = await client.cours(jeton);
       }
 
-      const ignores = await this.copierFichiers(cours, client, jeton);
+      const ignores = await this.copierFichiers(cours, client, jeton, id).finally(() => this.progressions.delete(id));
       // Les échéances ne bloquent pas le reste si e-campus refuse cette fonction.
       const echeances = await client.echeances(jeton, t.getTime()).catch((e) => {
         this.options.journal?.(`Échéances indisponibles : ${(e as Error).message}`);
@@ -166,17 +174,21 @@ export class SynchroCours {
   }
 
   /** Copie les fichiers absents du cache ; renvoie le nombre de fichiers ignorés (trop gros ou refusés). */
-  private async copierFichiers(cours: Cours[], client: MoodleClient, jeton: string): Promise<number> {
+  private async copierFichiers(cours: Cours[], client: MoodleClient, jeton: string, id: string): Promise<number> {
     const max = this.options.tailleMax ?? TAILLE_MAX;
     await mkdir(join(this.dossierDonnees, 'fichiers'), { recursive: true, mode: 0o700 });
     let ignores = 0;
     const vus = new Set<string>();
+    const total = new Set(cours.flatMap((c) => c.sections.flatMap((s) => s.elements.flatMap((e) => e.fichiers.map((f) => f.cle))))).size;
+    const progression = { faits: 0, total };
+    this.progressions.set(id, progression);
     for (const c of cours) {
       for (const s of c.sections) {
         for (const e of s.elements) {
           for (const f of e.fichiers) {
             if (vus.has(f.cle)) continue;
             vus.add(f.cle);
+            progression.faits = vus.size;
             if (f.taille > max) { ignores++; continue; }
             if (await this.existe(f.cle)) continue;
             try {

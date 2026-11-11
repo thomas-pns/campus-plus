@@ -36,6 +36,7 @@ export function Mails({ d, maintenant, horsLigne, surChange, surCreerDevoir }: P
   const [ouvert, setOuvert] = useState<Mail | null>(null);
   const donnees = d.mails!;
 
+  const [copie, setCopie] = useState('');
   const activer = async (actif: boolean) => {
     setOccupe(true);
     setErreur('');
@@ -106,6 +107,10 @@ export function Mails({ d, maintenant, horsLigne, surChange, surCreerDevoir }: P
         {donnees.etat.erreur ? ` Dernière tentative en échec : ${donnees.etat.erreur}` : ''}{' '}
         <button type="button" class="lien-texte" disabled={occupe || horsLigne} onClick={() => void activer(false)}>Ne plus lire mes mails</button>
       </p>
+      <p class="petit-texte">
+        <button type="button" class="lien-texte" onClick={() => void copierPourLeTri(donnees.mails).then(setCopie)}>{copie || 'Copier la liste pour améliorer le tri'}</button>
+        {' '}(expéditeur, objet et classement seulement : pas le texte des mails).
+      </p>
     </>
   );
 }
@@ -174,4 +179,23 @@ function FicheMail({ m, horsLigne, surFermer, surCreerDevoir, surCorriger }: {
       </section>
     </div>
   );
+}
+
+/** Résumé des mails à coller dans une discussion pour améliorer les règles de tri, sans leur contenu. */
+async function copierPourLeTri(mails: Mail[]): Promise<string> {
+  const lignes = mails.map((m) => [
+    m.categorie + (m.corrige ? ' (corrigé)' : ''),
+    m.de,
+    m.adresse.replace(/^[^@]*/, '…'),
+    m.sujet,
+    m.etiquettes.join(',') || '-',
+    m.matiere ?? '-',
+  ].join(' | '));
+  const texte = ['catégorie | expéditeur | domaine | objet | étiquettes | matière', ...lignes].join('\n');
+  try {
+    await navigator.clipboard.writeText(texte);
+    return `${mails.length} mails copiés : colle-les dans la discussion`;
+  } catch {
+    return 'Copie impossible sur ce navigateur';
+  }
 }

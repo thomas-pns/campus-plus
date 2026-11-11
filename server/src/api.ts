@@ -227,7 +227,7 @@ export async function creerApp(s: Services): Promise<FastifyInstance> {
           elements: sec.elements.map((e) => ({ ...e, fichiers: e.fichiers.map(({ adresse: _, ...f }) => f) })),
         })),
       }));
-      return { cours: liste, etat: await cours.etat(id) };
+      return { cours: liste, etat: { ...(await cours.etat(id)), progression: cours.progression(id) } };
     });
 
     app.get('/api/fichiers/:cle', { onRequest: exigerSession }, async (req, rep) => {
@@ -236,7 +236,8 @@ export async function creerApp(s: Services): Promise<FastifyInstance> {
       if (!trouve) return rep.code(404).send({ erreur: 'Fichier introuvable ou e-campus injoignable' });
       const nom = trouve.fichier.nom.replace(/[\r\n"]/g, '');
       rep.header('Content-Type', /^[\w.+-]+\/[\w.+-]+$/.test(trouve.fichier.type) ? trouve.fichier.type : 'application/octet-stream');
-      rep.header('Content-Disposition', `inline; filename="${nom.replace(/[^\x20-\x7e]/g, '_')}"; filename*=UTF-8''${encodeURIComponent(nom)}`);
+      const telecharger = (req.query as { telecharger?: string }).telecharger === '1';
+      rep.header('Content-Disposition', `${telecharger ? 'attachment' : 'inline'}; filename="${nom.replace(/[^\x20-\x7e]/g, '_')}"; filename*=UTF-8''${encodeURIComponent(nom)}`);
       rep.header('Cache-Control', 'private, max-age=86400');
       // Un fichier de cours ne doit jamais exécuter de script dans l'appli.
       rep.header('Content-Security-Policy', "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox");

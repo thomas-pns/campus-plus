@@ -48,14 +48,26 @@ export function Reglages({ d, maintenant, horsLigne, surRetour, surActualiser, s
         <h2 class="titre-groupe">Apparence et accueil</h2>
         <Segments options={[{ id: 'auto', nom: 'Auto' }, { id: 'clair', nom: 'Clair' }, { id: 'sombre', nom: 'Sombre' }] as const}
           valeur={theme} etiquette="Thème" surChoix={(t) => { setTheme(t); choisirTheme(t); }} />
+        <h3 class="sous-titre-groupe">Sur l’accueil</h3>
         <div class="carte liste">
-          <div class="rangee">
-            <span class="icone-rangee gris"><Icone nom="note" taille={17} epaisseur={2.2} /></span>
-            <span class="rangee-libelle">Cacher ma dernière note sur l’accueil</span>
-            <Interrupteur actif={prefs.cacherNote} libelle="Cacher ma dernière note sur l’accueil" surChange={(v) => setPrefs(changerPreferences({ cacherNote: v }))} />
-          </div>
+          {([
+            ['accueilExamens', 'Examens à venir'],
+            ['accueilAFaire', 'À faire'],
+            ['accueilTuiles', 'Dernière note et alertes'],
+          ] as const).map(([cle, nom]) => (
+            <div class="rangee">
+              <span class="rangee-libelle">{nom}</span>
+              <Interrupteur actif={prefs[cle]} libelle={`Afficher « ${nom} » sur l’accueil`} surChange={(v) => setPrefs(changerPreferences({ [cle]: v }))} />
+            </div>
+          ))}
+          {prefs.accueilTuiles && (
+            <div class="rangee sous-rangee">
+              <span class="rangee-libelle">Masquer la valeur de la note</span>
+              <Interrupteur actif={prefs.cacherNote} libelle="Masquer la valeur de la dernière note" surChange={(v) => setPrefs(changerPreferences({ cacherNote: v }))} />
+            </div>
+          )}
         </div>
-        <p class="petit-texte">« Auto » suit le réglage de ton téléphone. La note cachée reste visible dans Scolarité.</p>
+        <p class="petit-texte">« Auto » suit le réglage de ton téléphone. Ces choix valent pour cet appareil.</p>
       </section>
 
       <ReglagesNotifications horsLigne={horsLigne} />
