@@ -33,6 +33,8 @@ export interface Mail {
   texte: string;
   /** Ouvre PARTAGE (la boîte de réception). */
   lien: string;
+  /** Clé de l'expéditeur pour les corrections (adresse, ou adresse#nom pour les mails d'e-campus). */
+  expediteur?: string;
   /** Vrai si la catégorie vient d'un choix de l'élève pour cet expéditeur. */
   corrige?: boolean;
   nonLu: boolean;
@@ -109,20 +111,50 @@ export function profDe(de: { deNom: string; deAdresse: string }, profs: Map<stri
 
 /** École : adresses en …cpe.fr qui ressemblent à un service (scolarité, BDE…), pas à une personne. */
 const SERVICES = /scolarit|planning|etudes|examens?|direction|secretariat|admissions?|relations?|international|stages?|bde|bds|asso|cpe ?lyon|noreply|ne-pas-repondre|info/;
+/** Listes de diffusion de l'école, en tête d'objet : [3eti], [eti], [eleves]… */
+const LISTE = /^\s*(re|tr|fwd?)?\s*:?\s*\[(\d?[a-z]{2,6}|eleves|etudiants|tout-cpe)\]/;
+/** Communication, événements et offres : utiles parfois, jamais urgents. */
+const ANNONCES = /webinaire|conference|forum|salons?\b|battle ?dev|erasmus|concours|sondage|cotisation|diplomes|ambassadeur|evenements? a venir|newsletter|\[news\]|point info com|portes ouvertes|i-factory|entrepreneuriat|girls can code|volontaires? pour|career center|jobteaser|double diplome|presentation aux etudiants/;
 
-export function categorieDe(de: { deNom: string; deAdresse: string }, prof: string | null): Categorie {
+/** Mail envoyé par e-campus (Moodle) au nom d'un prof ou automatiquement. */
+export const viaCampus = (deNom: string) => /\(via cpe-campus\)/i.test(deNom);
+const nomSansVia = (deNom: string) => deNom.replace(/\s*\(via cpe-campus\)\s*/i, '').trim();
+
+/**
+ * Clé d'un expéditeur pour les corrections : e-campus envoie tout depuis la même adresse, au nom de
+ * chaque prof ; on distingue donc ces mails par le nom affiché.
+ */
+export const cleExpediteur = (de: { deNom: string; deAdresse: string }) =>
+  viaCampus(de.deNom) ? `${de.deAdresse.toLowerCase()}#${simple(nomSansVia(de.deNom))}` : de.deAdresse.toLowerCase();
+
+export function categorieDe(de: { deNom: string; deAdresse: string; sujet?: string }, prof: string | null): Categorie {
+  const sujet = simple(de.sujet ?? '');
+  if (viaCampus(de.deNom)) {
+    // Rappels automatiques (« À rendre le… », « En retard ») et « Nouveau contenu » : déjà dans l'appli.
+    if (/^merci de ne pas repondre/i.test(simple(de.deNom)) || /nouveau contenu de/.test(sujet)) return 'autre';
+    // Annonce d'un forum de cours : c'est un prof qui écrit.
+    return 'prof';
+  }
+  if (ANNONCES.test(sujet)) return 'autre';
   if (prof) return 'prof';
   const [local = '', domaine = ''] = de.deAdresse.toLowerCase().split('@');
   if (!/(^|\.)cpe\.fr$/.test(domaine)) return 'autre';
+  if (LISTE.test(sujet)) return 'ecole';
   return SERVICES.test(simple(`${de.deNom} ${local} ${domaine}`)) ? 'ecole' : 'autre';
+}
+
+/** Matière citée par un mail d'e-campus : « … du cours Logique Numérique (S5) * 26_27_… ». */
+export function matiereCampus(texte: string): string | null {
+  const m = texte.match(/(?:dans le cours|du cours|contenu de)\s+(.+?)\s*\(S\d+\)/i);
+  return m ? m[1].trim() : null;
 }
 
 const REGLES: [Etiquette, RegExp][] = [
   ['salle', /changement de salle|\bsalles?\b|\bamphi\b|\ben [a-j]\d{3}\b/],
-  ['examen', /partiel|examen|\bds\d*\b|controle|interro|epreuve|\bqcm\b|rattrapage/],
-  ['devoir', /exercices?|\bexos?\b|a rendre|\brendre\b|a faire pour|preparer|devoirs?\b|deadline|date limite|pour (lundi|mardi|mercredi|jeudi|vendredi|demain|la prochaine seance|la semaine prochaine)/],
-  ['cours', /nouvelle version|version corrigee|\bpoly\b|support de cours|diapos?|slides?|\bposte\b|depose|mis en ligne|sur e-?campus/],
-  ['annulation', /annule|annulation|reporte|n.aura pas lieu|pas (de )?cours|ne pourrai pas assurer|absent/],
+  ['examen', /partiel|examen|\bds\d*\b|controle|interro|epreuve|\bqcm\b|rattrapage|evaluation|vous etes attendus|modalites/],
+  ['devoir', /exercices?|\bexos?\b|a rendre|\brendre\b|en retard :|a faire pour|preparer|devoirs?\b|deadline|date limite|pour (lundi|mardi|mercredi|jeudi|vendredi|demain|la prochaine seance|la semaine prochaine)/],
+  ['cours', /nouvelle version|version corrigee|nouveau contenu|\bpoly\b|support de cours|diapos?|slides?|\bposte\b|depose|mis en ligne|sur e-?campus/],
+  ['annulation', /annule|annulation|reporte|n.aura pas lieu|pas (de )?cours|ne pourrai pas assurer|absent|en greve|\bgreve\b/],
 ];
 
 /** Le mail sans la signature ni l'historique des réponses. */
@@ -182,13 +214,13 @@ export class SynchroMails {
     const planning = (await this.depot.lire<Evenement[]>(id, 'planning')) ?? [];
     const profs = profsDuPlanning(planning);
     const mails = ((await this.depot.lire<Mail[]>(id, 'mails')) ?? []).map((m) => {
-      if (m.adresse !== cle) return m;
+      if ((m.expediteur ?? m.adresse.toLowerCase()) !== cle) return m;
       const prof = profDe({ deNom: m.de, deAdresse: m.adresse }, profs);
-      const cat = categorie ?? categorieDe({ deNom: m.de, deAdresse: m.adresse }, prof);
+      const cat = categorie ?? (cle.includes('#') ? (m.de === 'e-campus' ? 'autre' : 'prof') : categorieDe({ deNom: m.de, deAdresse: m.adresse, sujet: m.sujet }, prof));
       const aLire = cat !== 'autre' && !m.texte;
       return {
         ...m, categorie: cat, corrige: !!categorie,
-        etiquettes: cat === 'autre' ? [] : etiquettesDe(`${m.sujet}\n${m.texte || m.extrait}`),
+        etiquettes: cat !== 'autre' || cle.includes('#') ? etiquettesDe(`${m.sujet}\n${m.texte || m.extrait}`) : [],
         matiere: prof ? profs.get(prof)?.[0] ?? null : m.matiere,
         // Sans texte : on l'oublie pour qu'il soit relu (et son texte gardé) à la prochaine synchro.
         ...(aLire ? { id: `relire:${m.id}` } : {}),
@@ -247,6 +279,11 @@ export class SynchroMails {
       const nouveaux: Mail[] = [];
       for (const brut of boite) {
         const deja = connus.get(brut.id);
+        // Mails triés avec les anciennes règles (sans « expediteur ») : retriés, sans alerte.
+        if (deja && !deja.expediteur) {
+          resultat.push(await this.trier(brut, profs, choix, client));
+          continue;
+        }
         if (deja) {
           resultat.push({ ...deja, nonLu: brut.nonLu });
           continue;
@@ -290,9 +327,11 @@ export class SynchroMails {
 
   /** Trie un mail ; ne lit le texte complet que pour les mails des profs et de l'école. */
   private async trier(m: MailBrut, profs: Map<string, string[]>, choix: Record<string, Categorie>, client: PartageClient): Promise<Mail> {
-    const prof = profDe(m, profs);
-    const impose = choix[m.deAdresse];
-    const categorie = impose ?? categorieDe(m, prof);
+    const de = { deNom: viaCampus(m.deNom) ? nomSansVia(m.deNom) : m.deNom, deAdresse: m.deAdresse };
+    const prof = profDe(de, profs);
+    const cle = cleExpediteur(m);
+    const impose = choix[cle] ?? choix[m.deAdresse.toLowerCase()] ?? choix[m.deAdresse];
+    const categorie = impose ?? categorieDe({ ...m, sujet: m.sujet }, prof);
     let texte = m.extrait;
     if (categorie !== 'autre') {
       try {
@@ -302,9 +341,11 @@ export class SynchroMails {
       }
     }
     return {
-      id: m.id, date: m.date, sujet: m.sujet, de: m.deNom || m.deAdresse, adresse: m.deAdresse, categorie,
-      etiquettes: categorie === 'autre' ? [] : etiquettesDe(`${m.sujet}\n${texte}`),
-      matiere: prof ? profs.get(prof)![0] ?? null : null,
+      id: m.id, date: m.date, sujet: m.sujet.replace(/^\s*\[moodle\]\s*/i, ''), de: (viaCampus(m.deNom) ? nomSansVia(m.deNom).replace(/^merci de ne pas répondre à ce courriel$/i, 'e-campus') : m.deNom) || m.deAdresse, adresse: m.deAdresse, categorie,
+      // Les « autres » n'ont d'étiquettes que s'ils viennent d'e-campus (devoir, nouveau contenu).
+      etiquettes: categorie !== 'autre' || viaCampus(m.deNom) ? etiquettesDe(`${m.sujet}\n${texte}`) : [],
+      matiere: (prof ? profs.get(prof)![0] : null) ?? matiereCampus(`${m.sujet} ${texte}`) ?? null,
+      expediteur: cle,
       extrait: extraitDe(texte),
       texte: categorie === 'autre' ? '' : sansHistorique(texte).slice(0, TAILLE_TEXTE),
       lien: `${this.base}/`,

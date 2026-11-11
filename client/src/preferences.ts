@@ -6,10 +6,12 @@ export interface Preferences {
   accueilExamens: boolean;
   accueilAFaire: boolean;
   accueilTuiles: boolean;
+  /** Photo d'identité MyCPE à la place des initiales. */
+  photo: boolean;
 }
 
 const CLE = 'campus-plus:preferences';
-const DEFAUT: Preferences = { cacherNote: false, accueilExamens: true, accueilAFaire: true, accueilTuiles: true };
+const DEFAUT: Preferences = { cacherNote: false, accueilExamens: true, accueilAFaire: true, accueilTuiles: true, photo: true };
 
 export function lirePreferences(): Preferences {
   try {

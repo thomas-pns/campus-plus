@@ -122,6 +122,16 @@ export function LigneExamen({ e, maintenant, surOuvrir }: { e: Evenement; mainte
   );
 }
 
+/** Photo d'identité MyCPE si elle existe (et si l'élève la veut), sinon ses initiales. */
+export function Avatar({ initiales, photo, grand }: { initiales: string; photo: boolean; grand?: boolean }) {
+  const [echec, setEchec] = useState(false);
+  return (
+    <span class={`avatar-contenu ${grand ? 'grand' : ''}`} aria-hidden="true">
+      {photo && !echec ? <img src="/api/photo" alt="" onError={() => setEchec(true)} /> : initiales}
+    </span>
+  );
+}
+
 /* ---------- Fiche d'un créneau (panneau qui monte du bas) ---------- */
 
 export function FicheEvenement({ e, surFermer, surAjouterDevoir }: { e: Evenement; surFermer: () => void; surAjouterDevoir?: (e: Evenement) => void }) {

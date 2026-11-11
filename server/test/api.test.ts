@@ -118,7 +118,7 @@ describe('serveur Campus+ de bout en bout (faux WebAurion)', () => {
     await ouvrir();
     const [id] = await readdir(join(dossier, 'eleves'));
     const fichiers = await readdir(join(dossier, 'eleves', id));
-    expect(fichiers.sort()).toEqual(['absences.enc', 'compte.enc', 'etat.enc', 'notes.enc', 'planning.enc']);
+    expect(fichiers.sort()).toEqual(['absences.enc', 'compte.enc', 'etat.enc', 'notes.enc', 'photo.enc', 'planning.enc']);
     for (const f of fichiers) {
       const brut = await readFile(join(dossier, 'eleves', id, f), 'utf8');
       for (const mot of ['mot-de-passe', 'camille', 'BERNARD', 'Algèbre', 'F008', '12,5', '12.5']) expect(brut, `${f} contient ${mot}`).not.toContain(mot);

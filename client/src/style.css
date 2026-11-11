@@ -413,7 +413,7 @@ a.bouton { text-decoration: none; }
 
 /* ---------- Fichiers : partager, enregistrer ---------- */
 .rangee-fichier { padding: 0; gap: 0; }
-.rangee-lien { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 10px 4px 10px 14px; min-height: 52px; text-decoration: none; color: inherit; }
+.rangee-lien { flex: 1; min-width: 0; text-align: left; display: flex; align-items: center; gap: 12px; padding: 10px 4px 10px 14px; min-height: 52px; text-decoration: none; color: inherit; }
 .action-fichier { flex: none; width: 48px; align-self: stretch; display: grid; place-items: center; color: var(--lien); }
 .nom-fichier { overflow-wrap: anywhere; }
 .actions-fichier { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
@@ -426,3 +426,28 @@ a.bouton { text-decoration: none; }
 @keyframes va-et-vient { from { transform: translateX(-100%); } to { transform: translateX(290%); } }
 @media (prefers-reduced-motion: reduce) { .progression span.indetermine { animation: none; width: 100%; opacity: .4; } }
 .sous-titre-groupe { font-size: 13px; font-weight: 600; color: var(--doux); margin: 4px 4px -4px; }
+
+/* ---------- Lecteur de fichiers ---------- */
+.lecteur { position: absolute; inset: 0; z-index: 35; display: flex; flex-direction: column; background: var(--fond); animation: apparait .15s; }
+.lecteur-haut { flex: none; display: flex; align-items: center; gap: 4px; padding: calc(6px + var(--haut, env(safe-area-inset-top))) 8px 6px; background: var(--barre); border-bottom: 1px solid var(--trait); }
+.lecteur-titre { flex: 1; min-width: 0; font-weight: 700; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
+.lecteur-bouton { display: inline-flex; align-items: center; gap: 2px; min-width: 40px; height: 40px; padding: 0 8px; justify-content: center; color: var(--lien); font-size: 17px; font-weight: 600; border-radius: 10px; }
+.lecteur-bouton:disabled { opacity: .35; }
+.lecteur-zoom { display: flex; }
+.lecteur-zoom .lecteur-bouton { font-size: 24px; font-weight: 500; }
+.lecteur-corps { flex: 1; min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 12px 10px calc(16px + var(--bas, env(safe-area-inset-bottom))); }
+.pdf-pages { display: flex; flex-direction: column; gap: 10px; margin: 0 auto; max-width: none; }
+.lecteur-corps > .pdf-pages[style*="width: 100%"] { max-width: 900px; }
+.pdf-page { width: 100%; background: #fff; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,.18); overflow: hidden; }
+.pdf-page canvas { display: block; width: 100%; height: 100%; }
+.lecteur-image { display: block; max-width: 100%; margin: 0 auto; border-radius: 8px; }
+.lecteur-autre { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; max-width: 420px; margin: 40px auto 0; }
+.lecteur-autre h2 { overflow-wrap: anywhere; }
+.lecteur-message { text-align: center; color: var(--doux); margin-top: 40px; }
+.lecteur-message .progression { margin: 0 auto 12px; max-width: 240px; }
+.lecteur-erreur { position: absolute; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); background: var(--rouge-pale); color: var(--rouge-fonce); padding: 10px 14px; border-radius: 12px; font-size: 14px; }
+
+/* ---------- Avatar avec photo ---------- */
+.avatar { overflow: hidden; }
+.avatar-contenu { display: contents; }
+.avatar img { width: 100%; height: 100%; object-fit: cover; object-position: center 20%; display: block; }

@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { categorieDe, etiquettesDe, profDe, profsDuPlanning, SynchroMails } from '../src/mails.js';
+import { categorieDe, cleExpediteur, etiquettesDe, matiereCampus, profDe, profsDuPlanning, SynchroMails } from '../src/mails.js';
 import { PartageClient, ErreurIdentifiantsPartage } from '../src/sources/partage.js';
 import { lireEvenement } from '../src/sources/planning.js';
 import { creerApp } from '../src/api.js';
@@ -196,5 +196,27 @@ describe('mails de bout en bout', () => {
     expect((await req('PUT', '/api/mails/actif', { actif: false })).json()).toMatchObject({ etat: { actif: false }, mails: [] });
     expect(await mails.mails(id)).toEqual([]);
     expect(await readdir(join(dossier, 'eleves', id))).toContain('mails.enc');
+  });
+});
+
+describe('tri d’après de vrais mails de l’école', () => {
+  const vide = new Map<string, string[]>();
+  it('reconnaît les mails d’e-campus', () => {
+    expect(categorieDe({ deNom: 'Serge MAZAURIC (via CPe-Campus)', deAdresse: 'ne-pas-repondre@cpe.fr', sujet: '[MOODLE]  26_27_3ETI_05_MSP_101_C : Nouvelle version du cours' }, null)).toBe('prof');
+    expect(categorieDe({ deNom: 'Merci de ne pas répondre à ce courriel (via CPe-Campus)', deAdresse: 'ne-pas-repondre@cpe.fr', sujet: '[MOODLE]  En retard : RAPPORT TP1' }, null)).toBe('autre');
+    expect(categorieDe({ deNom: 'Mohamed MERGUI (via CPe-Campus)', deAdresse: 'ne-pas-repondre@cpe.fr', sujet: '[MOODLE]  Nouveau contenu de Logique Numérique (S5) * 26_27_3ETI_05_ELPH_001_C' }, null)).toBe('autre');
+    expect(matiereCampus('Le devoir RAPPORT TP1 du cours Logique Numérique (S5) * 26_27_3ETI')).toBe('Logique Numérique');
+    expect(cleExpediteur({ deNom: 'Serge MAZAURIC (via CPe-Campus)', deAdresse: 'ne-pas-repondre@cpe.fr' })).toBe('ne-pas-repondre@cpe.fr#serge mazauric');
+  });
+  it('met les listes de l’école en « École » et la communication en « Autre »', () => {
+    expect(categorieDe({ deNom: 'Elisabeth Gabrielian-Coutin', deAdresse: 'elisabeth.gabrielian-coutin@cpe.fr', sujet: '[3eti] Cours P1 - Salle F008' }, null)).toBe('ecole');
+    expect(categorieDe({ deNom: 'Françoise Perrin', deAdresse: 'francoise.perrin@cpe.fr', sujet: '[eleves] URGENT - FAILLE SECURITE' }, null)).toBe('ecole');
+    expect(categorieDe({ deNom: 'Delphine Masnou', deAdresse: 'delphine.masnou@cpe.fr', sujet: "[eti] Webinaire proposé par une diplômée" }, 'masnou')).toBe('autre');
+    expect(categorieDe({ deNom: 'Club Emploi CPE Lyon', deAdresse: 'notification@jobteaser.com', sujet: '[NEWS]  CPE Lyon : événements à venir' }, null)).toBe('autre');
+    expect(categorieDe({ deNom: 'Isabelle Favre', deAdresse: 'isabelle.favre@cpe.fr', sujet: "[eti] Battle Dev 2026 c'est demain - CPE F008" }, null)).toBe('autre');
+    expect(categorieDe({ deNom: 'Nina Petit', deAdresse: 'nina.petit@cpe.fr', sujet: 'Soirée' }, null)).toBe('autre');
+    expect(etiquettesDe('[3eti] Evaluation Analyse numérique du 03.11.2026 Vous êtes attendus le 03.11')).toEqual(['examen']);
+    expect(etiquettesDe('[3eti] [Philosophie des sciences] Intervenant en grève')).toEqual(['annulation']);
+    expect(vide.size).toBe(0);
   });
 });

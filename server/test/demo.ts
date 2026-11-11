@@ -22,6 +22,7 @@ import { FauxPartage, mailsFaux } from './faux-partage.js';
 import { SynchroCours } from '../src/cours.js';
 import { MoodleClient } from '../src/sources/moodle.js';
 import { coursFaux, FauxMoodle } from './faux-moodle.js';
+import { PDF_DEMO } from './pdf-demo.js';
 import { FauxMicrosoft } from './faux-microsoft.js';
 import { SynchroOneDrive } from '../src/onedrive.js';
 
@@ -73,6 +74,8 @@ const moodle = new FauxMoodle();
 moodle.identifiant = 'demo';
 moodle.motDePasse = 'demo';
 moodle.cours = coursFaux();
+// Dans la démo, les PDF sont de vrais PDF, pour essayer le lecteur.
+for (const c of moodle.cours) for (const sec of c.sections) for (const e of sec.elements) for (const f of e.fichiers ?? []) if (f.nom.endsWith('.pdf')) f.contenu = PDF_DEMO;
 // Un cours plus fourni, rangé comme le font souvent les profs, pour montrer le tri par type.
 moodle.cours.push({
   id: 4286, fullname: 'Signaux Analogiques et Numériques (S5) * 26_27_3ETI_05_MSP_103_C', shortname: '26_27_3ETI_05_MSP_103_C', categoryname: '3ETI_05_MSP',

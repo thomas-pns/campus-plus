@@ -112,6 +112,13 @@ export class Synchro {
           await this.options.surNouvellesAlertes(id, inedites).catch((e) => this.options.journal?.(`Notifications en échec : ${(e as Error).message}`));
         }
       }
+      // Photo d'identité : une fois par mois suffit. Un échec ici ne gêne pas le reste.
+      const photo = await this.depot.lire<{ date: string }>(id, 'photo');
+      if (!photo || t.getTime() - Date.parse(photo.date) > 30 * 86_400_000) {
+        const p = await client.photo().catch(() => null);
+        if (p) await this.depot.ecrire(id, 'photo', { date: t.toISOString(), type: p.type, donnees: p.octets.toString('base64') });
+        else if (!photo) await this.depot.ecrire(id, 'photo', { date: t.toISOString(), type: null, donnees: null });
+      }
       await this.depot.ecrire(id, 'planning', planning);
       await this.depot.ecrire(id, 'notes', notes);
       await this.depot.ecrire(id, 'absences', absences satisfies Absence[]);

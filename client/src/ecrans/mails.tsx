@@ -94,11 +94,11 @@ export function Mails({ d, maintenant, horsLigne, surChange, surCreerDevoir }: P
         </div>
       ) : <Vide icone="mail" titre="Aucun mail ici" texte="Rien sur les trois dernières semaines dans cette catégorie." />}
       {ouvert && (
-        <FicheMail m={donnees.mails.find((x) => x.adresse === ouvert.adresse && x.date === ouvert.date) ?? ouvert} horsLigne={horsLigne}
+        <FicheMail m={donnees.mails.find((x) => x.id.replace(/^relire:/, '') === ouvert.id.replace(/^relire:/, '')) ?? ouvert} horsLigne={horsLigne}
           surFermer={() => setOuvert(null)}
           surCreerDevoir={(m) => { setOuvert(null); surCreerDevoir(m); }}
           surCorriger={async (m, categorie) => {
-            const r = await api.corrigerExpediteur(m.adresse, categorie);
+            const r = await api.corrigerExpediteur(m.expediteur ?? m.adresse, categorie);
             surChange(r);
           }} />
       )}

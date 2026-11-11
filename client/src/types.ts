@@ -149,6 +149,8 @@ export interface Mail {
   /** Texte du mail (profs et école seulement), sans la signature ni l'historique. */
   texte?: string;
   lien: string;
+  /** Clé de l'expéditeur pour les corrections. */
+  expediteur?: string;
   /** Vrai si la catégorie vient d'un choix de l'élève pour cet expéditeur. */
   corrige?: boolean;
   nonLu?: boolean;

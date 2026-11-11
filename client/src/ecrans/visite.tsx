@@ -30,7 +30,8 @@ const ETAPES: Etape[] = [
   { onglet: 'aujourdhui', cible: ['[aria-label="Examens à venir"]', '[aria-label="À faire"]'], titre: 'Examens et devoirs', texte: 'Les partiels dès qu’ils sont publiés sur MyCPE, puis tes devoirs e-campus et tes tâches. Coche quand c’est fait.' },
   { onglet: 'planning', cible: ['.segments'], titre: 'Planning', texte: 'Jour, semaine ou mois. Les flèches font avancer ou reculer, et « Aujourd’hui » te ramène à la date du jour.' },
   { onglet: 'cours', cible: ['.bloc .carte.liste', '.onglets button:nth-child(3)'], titre: 'Cours', texte: 'Tous tes fichiers e-campus. Ouvre un cours : ils sont rangés par type (cours, TD, TP, annales), et tu peux y créer un devoir.' },
-  { onglet: 'alertes', cible: ['.segments'], titre: 'Boîte', texte: 'Les alertes (salle, horaire, nouvelle note, nouveau fichier, examen) et tes mails PARTAGE triés, si tu les actives.' },
+  { onglet: 'alertes', cible: ['.segments button:first-child', '.segments'], titre: 'Boîte : les alertes', texte: 'Tout ce qui change : salle, horaire, nouvelle note, nouveau fichier, examen. Les mêmes que les notifications.' },
+  { onglet: 'alertes', cible: ['.segments button:nth-child(2)', '.segments'], titre: 'Boîte : tes mails', texte: 'Tes mails PARTAGE, triés : profs et école en premier, avec les salles, examens et devoirs repérés. À activer ici ; tu peux corriger un expéditeur mal classé.' },
   { onglet: 'scolarite', cible: ['.onglets button:nth-child(5)'], titre: 'Scolarité', texte: 'Tes notes, tes moyennes par matière et tes absences.' },
   { onglet: 'aujourdhui', cible: ['.avatar'], titre: 'Réglages', texte: 'Notifications, thème sombre, OneDrive… et cette visite, si tu veux la revoir. Bonne rentrée !' },
 ];

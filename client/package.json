@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@fontsource/inter": "^5.3.0",
+    "pdfjs-dist": "^4.10.38",
     "preact": "^11.2.0"
   },
   "devDependencies": {

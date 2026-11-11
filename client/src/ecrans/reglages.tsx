@@ -1,7 +1,7 @@
 import { useState } from 'preact/hooks';
 import type { Donnees } from '../types';
 import { ilYA, initialesDe } from '../dates';
-import { Icone, Segments } from '../composants';
+import { Avatar, Icone, Segments } from '../composants';
 import { choisirTheme, lireTheme, type Theme } from '../theme';
 import { Interrupteur, ReglagesNotifications } from './notifications';
 import { changerPreferences, lirePreferences } from '../preferences';
@@ -37,7 +37,7 @@ export function Reglages({ d, maintenant, horsLigne, surRetour, surActualiser, s
       <h1 class="titre-page">Réglages</h1>
 
       <div class="carte profil">
-        <span class="avatar grand" aria-hidden="true">{initialesDe(d.moi.nom)}</span>
+        <span class="avatar grand" aria-hidden="true"><Avatar initiales={initialesDe(d.moi.nom)} photo={prefs.photo} grand /></span>
         <span class="rangee-texte">
           <strong>{d.moi.nom || 'Compte CPE'}</strong>
           <span>Compte CPE connecté</span>
@@ -51,13 +51,14 @@ export function Reglages({ d, maintenant, horsLigne, surRetour, surActualiser, s
         <h3 class="sous-titre-groupe">Sur l’accueil</h3>
         <div class="carte liste">
           {([
+            ['photo', 'Ma photo MyCPE en avatar'],
             ['accueilExamens', 'Examens à venir'],
             ['accueilAFaire', 'À faire'],
             ['accueilTuiles', 'Dernière note et alertes'],
           ] as const).map(([cle, nom]) => (
             <div class="rangee">
               <span class="rangee-libelle">{nom}</span>
-              <Interrupteur actif={prefs[cle]} libelle={`Afficher « ${nom} » sur l’accueil`} surChange={(v) => setPrefs(changerPreferences({ [cle]: v }))} />
+              <Interrupteur actif={prefs[cle]} libelle={cle === 'photo' ? nom : `Afficher « ${nom} » sur l’accueil`} surChange={(v) => setPrefs(changerPreferences({ [cle]: v }))} />
             </div>
           ))}
           {prefs.accueilTuiles && (

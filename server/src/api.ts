@@ -312,7 +312,7 @@ export async function creerApp(s: Services): Promise<FastifyInstance> {
     app.put('/api/mails/expediteur', {
       onRequest: exigerSession,
       schema: { body: { type: 'object', required: ['adresse', 'categorie'], additionalProperties: false, properties: {
-        adresse: { type: 'string', minLength: 3, maxLength: 320 },
+        adresse: { type: 'string', minLength: 3, maxLength: 400 },
         categorie: { type: ['string', 'null'], enum: ['prof', 'ecole', 'autre', null] },
       } } },
     }, async (req) => {
@@ -333,6 +333,16 @@ export async function creerApp(s: Services): Promise<FastifyInstance> {
       return { etat, mails: etat.actif ? await mails.mails(id) : [] };
     });
   }
+
+  /* ---------- Photo d'identité (MyCPE) ---------- */
+
+  app.get('/api/photo', { onRequest: exigerSession }, async (req, rep) => {
+    const p = await s.depot.lire<{ type: string | null; donnees: string | null }>(req.compte!.id, 'photo');
+    if (!p?.type || !p.donnees) return rep.code(404).send({ erreur: 'Pas de photo' });
+    rep.header('Content-Type', p.type);
+    rep.header('Cache-Control', 'private, max-age=86400');
+    return rep.send(Buffer.from(p.donnees, 'base64'));
+  });
 
   /* ---------- OneDrive ---------- */
 

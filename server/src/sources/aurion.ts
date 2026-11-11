@@ -16,6 +16,7 @@ const MENU = {
   planning: { libelle: 'Planning', secours: '18' },
   notes: { libelle: 'Notes', secours: '19' },
   absences: { libelle: 'Absences', secours: '20' },
+  infos: { libelle: 'Informations personnelles', secours: '1' },
 } as const;
 
 export class ErreurAurion extends Error {}
@@ -265,6 +266,31 @@ export class AurionClient {
     const notes = lireNotes(page.html);
     if (!notes) throw new ErreurAurion('Tableau des notes introuvable');
     return notes;
+  }
+
+  /**
+   * Photo d'identité de l'élève (page « Informations personnelles »). L'adresse de l'image ne sert
+   * qu'une fois : elle est lue juste après la page. Renvoie null s'il n'y en a pas.
+   */
+  async photo(): Promise<{ octets: Buffer; type: string } | null> {
+    const page = await this.ouvrirMenu(MENU.infos);
+    const $ = cheerio.load(page.html);
+    const img = $('img[id$=":photo"], [id$=":photo"] img').first().attr('src')
+      ?? $('img[src*="dynamiccontent.properties"]').first().attr('src');
+    if (!img) return null;
+    let res: Response;
+    try {
+      res = await fetch(new URL(img, this.base), {
+        signal: AbortSignal.timeout(this.delaiMs),
+        headers: { Cookie: [...this.cookies].map(([k, v]) => `${k}=${v}`).join('; '), 'User-Agent': 'CampusPlus/0.1 (+https://github.com/thomas-pns/campus-plus)' },
+      });
+    } catch {
+      return null;
+    }
+    const type = (res.headers.get('content-type') ?? '').split(';')[0].trim();
+    const octets = Buffer.from(await res.arrayBuffer());
+    if (!res.ok || !/^image\/(jpeg|png|gif|webp)$/.test(type) || octets.length < 100 || octets.length > 2_000_000) return null;
+    return { octets, type };
   }
 
   async absences(): Promise<Absence[]> {

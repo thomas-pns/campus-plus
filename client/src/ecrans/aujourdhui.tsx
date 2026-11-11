@@ -1,7 +1,7 @@
 import type { Donnees, Evenement } from '../types';
 import { ajouterJours, dans, heureDe, initialesDe, jourDe, jourEnToutesLettres, jourParis, prenomDe } from '../dates';
 import { aLaUne, CATEGORIES, duJour, examensAVenir, prochainJourAvecCours, salleDe, salleDeduite, titreDe } from '../planning';
-import { Icone, LigneEvenement, LigneExamen, Vide } from '../composants';
+import { Avatar, Icone, LigneEvenement, LigneExamen, Vide } from '../composants';
 import { lirePreferences } from '../preferences';
 import { aVenir, lignes } from '../afaire';
 import { LigneAFaire } from './devoirs';
@@ -30,7 +30,7 @@ export function Aujourdhui({ d, maintenant, surOuvrir, surReglages, surAller, su
   const derniereNote = [...d.notes].reverse().find((n) => n.note !== null);
   const alertesRecentes = d.alertes.filter((a) => maintenant - Date.parse(a.date) < SEPT_JOURS);
   const examens = examensAVenir(d.planning, maintenant);
-  const { cacherNote, accueilExamens, accueilAFaire, accueilTuiles } = lirePreferences();
+  const { cacherNote, accueilExamens, accueilAFaire, accueilTuiles, photo } = lirePreferences();
   const urgents = d.afaire ? aVenir(lignes(d.afaire.echeances, d.afaire.taches, maintenant), maintenant) : [];
 
   return (
@@ -40,7 +40,7 @@ export function Aujourdhui({ d, maintenant, surOuvrir, surReglages, surAller, su
           <p class="surtitre">{jourEnToutesLettres(jour)}</p>
           <h1>{prenom ? `Bonjour ${prenom}` : 'Bonjour'}</h1>
         </div>
-        <button type="button" class="avatar" onClick={surReglages} aria-label="Profil et réglages">{initialesDe(d.moi.nom)}</button>
+        <button type="button" class="avatar" onClick={surReglages} aria-label="Profil et réglages"><Avatar initiales={initialesDe(d.moi.nom)} photo={photo} /></button>
       </header>
 
       {une ? <Une e={une.evenement} enCours={une.enCours} jour={jour} maintenant={maintenant} surOuvrir={surOuvrir} /> : (
