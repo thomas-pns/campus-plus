@@ -80,3 +80,19 @@ export function initialesDe(nom: string): string {
   const premier = mots[0];
   return (premier === famille ? premier.charAt(0) : premier.charAt(0) + famille.charAt(0)).toUpperCase();
 }
+
+/** Premier jour du mois de `jour`, décalé de `n` mois. */
+export function moisDecale(jour: string, n: number): string {
+  const [a, m] = jour.split('-').map(Number);
+  const d = new Date(Date.UTC(a, m - 1 + n, 1));
+  return d.toISOString().slice(0, 10);
+}
+
+/** Jours affichés dans la grille du mois : semaines complètes, du lundi au dimanche. */
+export function grilleMois(jour: string): string[] {
+  const premier = moisDecale(jour, 0);
+  const dernier = ajouterJours(moisDecale(jour, 1), -1);
+  const jours: string[] = [];
+  for (let j = lundiDe(premier); j <= dernier || rangDansSemaine(j) !== 0; j = ajouterJours(j, 1)) jours.push(j);
+  return jours;
+}

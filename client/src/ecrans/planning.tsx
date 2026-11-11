@@ -1,10 +1,10 @@
 import { useState } from 'preact/hooks';
 import type { Donnees, Evenement } from '../types';
-import { ajouterJours, jourEnToutesLettres, jourParis, libelleJour, lundiDe, numeroSemaine, rangDansSemaine } from '../dates';
+import { ajouterJours, grilleMois, jourEnToutesLettres, moisDecale, jourParis, libelleJour, lundiDe, numeroSemaine, rangDansSemaine } from '../dates';
 import { CATEGORIES, duJour, salleDe, semaineDe, titreDe, type Bloc } from '../planning';
 import { Entete, Icone, LigneEvenement, Segments, Vide } from '../composants';
 
-const VUES = [{ id: 'jour', nom: 'Jour' }, { id: 'semaine', nom: 'Semaine' }] as const;
+const VUES = [{ id: 'jour', nom: 'Jour' }, { id: 'semaine', nom: 'Semaine' }, { id: 'mois', nom: 'Mois' }] as const;
 type Vue = (typeof VUES)[number]['id'];
 const PX_PAR_HEURE = 58;
 const LEGENDE = ['cours', 'td', 'tp', 'langues', 'fhes', 'examen'] as const;
@@ -22,23 +22,28 @@ export function Planning({ d, maintenant, surOuvrir }: Props) {
   const [jour, setJour] = useState(() => (rangDansSemaine(aujourdhui) >= 5 && !duJour(d.planning, aujourdhui).length ? ajouterJours(lundiDe(aujourdhui), 7) : aujourdhui));
   const lundi = lundiDe(jour);
   const semaine = semaineDe(d.planning, lundi);
-  const mois = libelleJour(ajouterJours(lundi, 3), { month: 'long', year: 'numeric' });
-  const decaler = (n: number) => setJour(vue === 'jour' ? ajouterJours(jour, n) : ajouterJours(lundi, 7 * n));
+  const mois = libelleJour(vue === 'mois' ? jour : ajouterJours(lundi, 3), { month: 'long', year: 'numeric' });
+  const decaler = (n: number) => setJour(vue === 'jour' ? ajouterJours(jour, n) : vue === 'mois' ? moisDecale(jour, n) : ajouterJours(lundi, 7 * n));
+  const pas = vue === 'jour' ? 'Jour' : vue === 'mois' ? 'Mois' : 'Semaine';
+  const ailleurs = vue === 'mois' ? jour.slice(0, 7) !== aujourdhui.slice(0, 7) : lundiDe(aujourdhui) !== lundi || (vue === 'jour' && jour !== aujourdhui);
 
   return (
     <>
-      <Entete surtitre={`Semaine ${numeroSemaine(lundi)}`} titre={mois.charAt(0).toUpperCase() + mois.slice(1)}>
-        <button type="button" class="rond" onClick={() => decaler(-1)} aria-label={vue === 'jour' ? 'Jour précédent' : 'Semaine précédente'}><Icone nom="gauche" epaisseur={2.4} taille={20} /></button>
-        <button type="button" class="rond" onClick={() => decaler(1)} aria-label={vue === 'jour' ? 'Jour suivant' : 'Semaine suivante'}><Icone nom="droite" epaisseur={2.4} taille={20} /></button>
+      <Entete surtitre={vue === 'mois' ? 'Planning' : `Semaine ${numeroSemaine(lundi)}`} titre={mois.charAt(0).toUpperCase() + mois.slice(1)}>
+        <button type="button" class="rond" onClick={() => decaler(-1)} aria-label={`${pas} précédent${pas === 'Semaine' ? 'e' : ''}`}><Icone nom="gauche" epaisseur={2.4} taille={20} /></button>
+        <button type="button" class="rond" onClick={() => decaler(1)} aria-label={`${pas} suivant${pas === 'Semaine' ? 'e' : ''}`}><Icone nom="droite" epaisseur={2.4} taille={20} /></button>
       </Entete>
 
       <div class="barre-vue">
         <Segments options={VUES} valeur={vue} surChoix={setVue} etiquette="Vue" />
-        {lundiDe(aujourdhui) !== lundi || (vue === 'jour' && jour !== aujourdhui) ? (
+        {ailleurs ? (
           <button type="button" class="lien-bouton" onClick={() => setJour(aujourdhui)}>Aujourd'hui</button>
         ) : null}
       </div>
 
+      {vue === 'mois' ? (
+        <Mois d={d} jour={jour} aujourdhui={aujourdhui} surChoix={(j) => { setJour(j); setVue('jour'); }} />
+      ) : <>
       <div class={`jours ${vue === 'semaine' ? 'avec-marge' : ''}`} style={{ '--colonnes': semaine.jours.length }}>
         {semaine.jours.map((j, i) => (
           <button type="button" class={`jour ${j === aujourdhui ? 'aujourdhui' : ''} ${vue === 'jour' && j === jour ? 'choisi' : ''}`}
@@ -67,6 +72,35 @@ export function Planning({ d, maintenant, surOuvrir }: Props) {
           ) : <Vide icone="calendrier" titre="Pas de cours ce jour-là" />}
         </section>
       )}
+      </>}
+    </>
+  );
+}
+
+/** Vue du mois : une pastille par type de cours dans la journée ; un appui ouvre la journée. */
+function Mois({ d, jour, aujourdhui, surChoix }: { d: Donnees; jour: string; aujourdhui: string; surChoix: (j: string) => void }) {
+  const mois = jour.slice(0, 7);
+  const jours = grilleMois(jour);
+  return (
+    <>
+      <div class="mois" role="grid" aria-label="Mois">
+        {['lun', 'mar', 'mer', 'jeu', 'ven', 'sam', 'dim'].map((n) => <span class="mois-entete">{n}</span>)}
+        {jours.map((j) => {
+          const evts = duJour(d.planning, j);
+          const cats = [...new Set(evts.map((e) => e.categorie))].slice(0, 4);
+          return (
+            <button type="button" class={`mois-jour ${j.slice(0, 7) !== mois ? 'hors' : ''} ${j === aujourdhui ? 'aujourdhui' : ''}`}
+              onClick={() => surChoix(j)} aria-current={j === aujourdhui ? 'date' : undefined}
+              aria-label={`${jourEnToutesLettres(j)}, ${evts.length ? `${evts.length} cours` : 'aucun cours'}`}>
+              <strong>{Number(j.slice(8))}</strong>
+              <span class="mois-points">{cats.map((c) => <i class={CATEGORIES[c].classe} />)}</span>
+            </button>
+          );
+        })}
+      </div>
+      <ul class="legende" aria-label="Légende">
+        {LEGENDE.map((c) => <li><i class={CATEGORIES[c].classe} />{CATEGORIES[c].nom}</li>)}
+      </ul>
     </>
   );
 }

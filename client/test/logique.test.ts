@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ajouterJours, dans, heureDe, ilYA, initialesDe, jourDe, jourEnToutesLettres, jourParis, lundiDe, minutesDe, numeroSemaine, prenomDe, rangDansSemaine } from '../src/dates';
+import { ajouterJours, dans, grilleMois, moisDecale, heureDe, ilYA, initialesDe, jourDe, jourEnToutesLettres, jourParis, lundiDe, minutesDe, numeroSemaine, prenomDe, rangDansSemaine } from '../src/dates';
 import { aLaUne, disposer, duJour, prochainJourAvecCours, salleDe, salleDeduite, semaineDe } from '../src/planning';
 import type { Evenement } from '../src/types';
 
@@ -9,6 +9,16 @@ const evt = (jour: string, debut: string, fin: string, plus: Partial<Evenement> 
 });
 
 describe('dates', () => {
+  it('construit la grille du mois en semaines complètes', () => {
+    const g = grilleMois('2026-11-11');
+    expect(g[0]).toBe('2026-10-26');
+    expect(g.at(-1)).toBe('2026-12-06');
+    expect(g.length % 7).toBe(0);
+    expect(grilleMois('2027-03-15').length).toBe(35);
+    expect(moisDecale('2026-12-31', 1)).toBe('2027-01-01');
+    expect(moisDecale('2026-01-31', -1)).toBe('2025-12-01');
+  });
+
   it('lit le jour et l’heure écrits dans la chaîne (heure de Paris)', () => {
     expect(jourDe('2026-11-10T10:30:00+01:00')).toBe('2026-11-10');
     expect(heureDe('2026-11-10T10:30:00+01:00')).toBe('10:30');

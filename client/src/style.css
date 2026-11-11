@@ -124,6 +124,15 @@ h1 { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.
 .barre-vue { display: flex; align-items: center; gap: 8px; }
 .jours { display: grid; grid-template-columns: repeat(var(--colonnes), minmax(0, 1fr)); gap: 4px; }
 .jours.avec-marge { padding-left: 38px; }
+.mois { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.mois-entete { text-align: center; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--doux); padding-bottom: 2px; }
+.mois-jour { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 5px; min-height: 58px; padding: 8px 0 6px; border-radius: 12px; background: var(--carte); }
+.mois-jour strong { font-size: 16px; font-weight: 700; }
+.mois-jour.hors { background: transparent; } .mois-jour.hors strong { color: var(--gris-clair); font-weight: 500; }
+.mois-jour.aujourdhui { background: var(--cpe); color: #fff; }
+.mois-points { display: flex; gap: 3px; min-height: 6px; }
+.mois-points i { width: 6px; height: 6px; border-radius: 3px; background: var(--c); }
+.mois-jour.aujourdhui .mois-points i { box-shadow: 0 0 0 1.5px #fff; }
 .jour { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 0 5px; border-radius: 14px; min-height: 44px; }
 .jour span { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--doux); }
 .jour strong { font-size: 18px; font-weight: 800; }
