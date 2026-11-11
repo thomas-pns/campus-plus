@@ -85,10 +85,11 @@ export function Segments<T extends string>({ options, valeur, surChoix, etiquett
 
 /* ---------- Un créneau dans une liste (vue jour) ---------- */
 
-export function LigneEvenement({ e, passe, surOuvrir }: { e: Evenement; passe?: boolean; surOuvrir: (e: Evenement) => void }) {
+export function LigneEvenement({ e, passe, surOuvrir, phrase }: { e: Evenement; passe?: boolean; surOuvrir: (e: Evenement) => void; phrase?: boolean }) {
   const cat = CATEGORIES[e.categorie];
   const branleur = lirePreferences().branleur;
-  const excuse = branleur ? (verdict(e)?.message ?? soutienExamen(e)) : null;
+  const v = branleur ? verdict(e) : null;
+  const examen = branleur ? soutienExamen(e) : null;
   const sousTitre = [e.intervenants.join(', '), e.groupe].filter(Boolean).join(' · ');
   return (
     <button type="button" class={`ligne-evt ${passe ? 'passe' : ''}`} onClick={() => surOuvrir(e)}>
@@ -103,7 +104,9 @@ export function LigneEvenement({ e, passe, surOuvrir }: { e: Evenement; passe?: 
         </span>
         <span class="ligne-titre">{titreDe(e)}</span>
         {sousTitre && <span class="ligne-sous">{sousTitre}</span>}
-        {excuse && <span class="ligne-facultatif">{excuse}</span>}
+        {v && <span class="ligne-facultatif">😴 Facultatif</span>}
+        {v && phrase && <span class="ligne-excuse">{v.message}</span>}
+        {examen && <span class="ligne-facultatif">{examen}</span>}
       </span>
     </button>
   );

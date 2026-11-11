@@ -63,7 +63,7 @@ export function Aujourdhui({ d, maintenant, surOuvrir, surReglages, surAller, su
           <>
             <h2 class="titre-bloc">Aujourd'hui</h2>
             <div class="liste-evts">
-              {liste.map((e) => <LigneEvenement key={e.cle} e={e} passe={Date.parse(e.fin) <= maintenant} surOuvrir={surOuvrir} />)}
+              {liste.map((e) => <LigneEvenement key={e.cle} e={e} passe={Date.parse(e.fin) <= maintenant} surOuvrir={surOuvrir} phrase />)}
             </div>
           </>
         ) : (
@@ -73,7 +73,7 @@ export function Aujourdhui({ d, maintenant, surOuvrir, surReglages, surAller, su
               <>
                 <h2 class="titre-bloc">{jourSuivant === ajouterJours(jour, 1) ? 'Demain' : jourEnToutesLettres(jourSuivant)}</h2>
                 <div class="liste-evts">
-                  {duJour(d.planning, jourSuivant).map((e) => <LigneEvenement key={e.cle} e={e} surOuvrir={surOuvrir} />)}
+                  {duJour(d.planning, jourSuivant).map((e) => <LigneEvenement key={e.cle} e={e} surOuvrir={surOuvrir} phrase />)}
                 </div>
               </>
             )}
