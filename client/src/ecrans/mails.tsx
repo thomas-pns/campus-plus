@@ -1,8 +1,8 @@
-import { useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import type { Donnees, EtiquetteMail, Mail } from '../types';
 import * as api from '../api';
 import { ilYA } from '../dates';
-import { Icone, Vide } from '../composants';
+import { Icone, Segments, Vide } from '../composants';
 
 const ETIQUETTES: Record<EtiquetteMail, { nom: string; classe: string }> = {
   salle: { nom: 'Salle', classe: 'c-examen' },
@@ -33,6 +33,7 @@ export function Mails({ d, maintenant, horsLigne, surChange, surCreerDevoir }: P
   const [filtre, setFiltre] = useState<Filtre>('importants');
   const [occupe, setOccupe] = useState(false);
   const [erreur, setErreur] = useState('');
+  const [ouvert, setOuvert] = useState<Mail | null>(null);
   const donnees = d.mails!;
 
   const activer = async (actif: boolean) => {
@@ -75,31 +76,102 @@ export function Mails({ d, maintenant, horsLigne, surChange, surCreerDevoir }: P
       {liste.length ? (
         <div class="liste-alertes">
           {liste.map((m) => (
-            <article class="carte alerte mail">
-              <div class="alerte-haut">
+            <button type="button" class={`carte alerte mail ${m.nonLu ? 'non-lu' : ''}`} onClick={() => setOuvert(m)}>
+              <span class="alerte-haut">
                 <span class="pastilles">
                   {m.categorie === 'prof' && <span class="pastille c-cours">Prof{m.matiere ? ` · ${m.matiere}` : ''}</span>}
                   {m.categorie === 'ecole' && <span class="pastille c-neutre">École</span>}
                   {m.etiquettes.map((e) => <span class={`pastille ${ETIQUETTES[e].classe}`}>{ETIQUETTES[e].nom}</span>)}
                 </span>
                 <span class="alerte-date">{ilYA(maintenant - m.date)}</span>
-              </div>
-              <h2>{m.sujet}</h2>
-              <p class="mail-de">{m.de}</p>
-              {m.extrait && <p class="mail-extrait">{m.extrait}</p>}
-              <div class="actions">
-                {m.categorie === 'prof' && <button type="button" class={`bouton petit ${m.etiquettes.includes('devoir') ? '' : 'secondaire'}`} onClick={() => surCreerDevoir(m)}>Créer un devoir</button>}
-                <a class="bouton petit secondaire" href={m.lien} target="_blank" rel="noopener noreferrer">Voir le mail</a>
-              </div>
-            </article>
+              </span>
+              <span class="mail-sujet">{m.sujet}</span>
+              <span class="mail-de">{m.de}</span>
+              {m.extrait && <span class="mail-extrait">{m.extrait}</span>}
+            </button>
           ))}
         </div>
       ) : <Vide icone="mail" titre="Aucun mail ici" texte="Rien sur les trois dernières semaines dans cette catégorie." />}
+      {ouvert && (
+        <FicheMail m={donnees.mails.find((x) => x.adresse === ouvert.adresse && x.date === ouvert.date) ?? ouvert} horsLigne={horsLigne}
+          surFermer={() => setOuvert(null)}
+          surCreerDevoir={(m) => { setOuvert(null); surCreerDevoir(m); }}
+          surCorriger={async (m, categorie) => {
+            const r = await api.corrigerExpediteur(m.adresse, categorie);
+            surChange(r);
+          }} />
+      )}
       <p class="petit-texte">
         Mails des 3 dernières semaines{donnees.etat.derniereSynchro ? `, relus ${ilYA(maintenant - Date.parse(donnees.etat.derniereSynchro))}` : ''}.
         {donnees.etat.erreur ? ` Dernière tentative en échec : ${donnees.etat.erreur}` : ''}{' '}
         <button type="button" class="lien-texte" disabled={occupe || horsLigne} onClick={() => void activer(false)}>Ne plus lire mes mails</button>
       </p>
     </>
+  );
+}
+
+const CATEGORIES = [{ id: 'prof', nom: 'Prof' }, { id: 'ecole', nom: 'École' }, { id: 'autre', nom: 'Autre' }] as const;
+
+/** Un mail ouvert : texte complet, actions, et correction de la catégorie de l'expéditeur. */
+function FicheMail({ m, horsLigne, surFermer, surCreerDevoir, surCorriger }: {
+  m: Mail; horsLigne: boolean; surFermer: () => void; surCreerDevoir: (m: Mail) => void;
+  surCorriger: (m: Mail, categorie: Mail['categorie'] | null) => Promise<void>;
+}) {
+  const fermer = useRef<HTMLButtonElement>(null);
+  const [occupe, setOccupe] = useState(false);
+  const [erreur, setErreur] = useState('');
+  useEffect(() => {
+    fermer.current?.focus();
+    const touche = (ev: KeyboardEvent) => ev.key === 'Escape' && surFermer();
+    document.addEventListener('keydown', touche);
+    return () => document.removeEventListener('keydown', touche);
+  }, [surFermer]);
+
+  const corriger = async (categorie: Mail['categorie'] | null) => {
+    setOccupe(true);
+    setErreur('');
+    try {
+      await surCorriger(m, categorie);
+    } catch (e) {
+      setErreur((e as Error).message);
+    } finally {
+      setOccupe(false);
+    }
+  };
+
+  const date = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }).format(m.date);
+  return (
+    <div class="voile" onClick={(ev) => ev.target === ev.currentTarget && surFermer()}>
+      <section class="feuille" role="dialog" aria-modal="true" aria-label={m.sujet}>
+        <div class="feuille-haut">
+          <span class="pastilles">
+            {m.categorie === 'prof' && <span class="pastille c-cours">Prof{m.matiere ? ` · ${m.matiere}` : ''}</span>}
+            {m.categorie === 'ecole' && <span class="pastille c-neutre">École</span>}
+            {m.etiquettes.map((e) => <span class={`pastille ${ETIQUETTES[e].classe}`}>{ETIQUETTES[e].nom}</span>)}
+          </span>
+          <button type="button" class="rond" ref={fermer} onClick={surFermer} aria-label="Fermer"><Icone nom="fermer" taille={18} epaisseur={2.4} /></button>
+        </div>
+        <h2>{m.sujet}</h2>
+        <p class="mail-meta"><strong>{m.de}</strong><br />{m.adresse} · {date}</p>
+        <div class="mail-texte">{m.texte || m.extrait || 'Pas de texte.'}</div>
+        {!m.texte && m.categorie === 'autre' && <p class="petit-texte">Seul le début des mails « Autre » est gardé. Classe l'expéditeur en Prof ou École pour lire ses mails en entier ici.</p>}
+
+        <div class="mail-actions">
+          {m.categorie === 'prof' && <button type="button" class="bouton petit" onClick={() => surCreerDevoir(m)}>Créer un devoir</button>}
+          <a class="bouton petit secondaire" href={m.lien} target="_blank" rel="noopener noreferrer">Ouvrir PARTAGE</a>
+        </div>
+
+        <div class="correction">
+          <p class="etiquette">Cet expéditeur est</p>
+          <Segments options={CATEGORIES} valeur={m.categorie} etiquette="Catégorie de l'expéditeur"
+            surChoix={(c) => { if (!occupe && !horsLigne && c !== m.categorie) void corriger(c); }} />
+          <p class="petit-texte">
+            {m.corrige ? 'Choisi par toi : appliqué à tous ses mails. ' : 'Deviné automatiquement. Ton choix s’appliquera à tous ses mails. '}
+            {m.corrige && <button type="button" class="lien-texte" disabled={occupe || horsLigne} onClick={() => void corriger(null)}>Revenir au tri automatique</button>}
+          </p>
+          {erreur && <p class="erreur" role="alert">{erreur}</p>}
+        </div>
+      </section>
+    </div>
   );
 }

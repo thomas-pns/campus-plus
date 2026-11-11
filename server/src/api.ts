@@ -305,6 +305,18 @@ export async function creerApp(s: Services): Promise<FastifyInstance> {
       return { etat, mails: etat.actif ? await mails.mails(id) : [] };
     });
 
+    app.put('/api/mails/expediteur', {
+      onRequest: exigerSession,
+      schema: { body: { type: 'object', required: ['adresse', 'categorie'], additionalProperties: false, properties: {
+        adresse: { type: 'string', minLength: 3, maxLength: 320 },
+        categorie: { type: ['string', 'null'], enum: ['prof', 'ecole', 'autre', null] },
+      } } },
+    }, async (req) => {
+      const { adresse, categorie } = req.body as { adresse: string; categorie: 'prof' | 'ecole' | 'autre' | null };
+      const id = req.compte!.id;
+      return { etat: await mails.etat(id), mails: await mails.corriger(id, adresse, categorie) };
+    });
+
     app.put('/api/mails/actif', {
       onRequest: exigerSession,
       schema: { body: { type: 'object', required: ['actif'], additionalProperties: false, properties: { actif: { type: 'boolean' } } } },

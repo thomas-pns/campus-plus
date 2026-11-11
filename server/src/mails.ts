@@ -29,8 +29,12 @@ export interface Mail {
   matiere: string | null;
   /** Début du texte (au plus 240 caractères). */
   extrait: string;
-  /** Ouvre le mail dans PARTAGE (si la session du navigateur est ouverte). */
+  /** Texte du mail, sans la signature ni l'historique (profs et école seulement, au plus 4 000 caractères). */
+  texte: string;
+  /** Ouvre PARTAGE (la boîte de réception). */
   lien: string;
+  /** Vrai si la catégorie vient d'un choix de l'élève pour cet expéditeur. */
+  corrige?: boolean;
   nonLu: boolean;
 }
 
@@ -47,6 +51,7 @@ const ETAT_VIDE: EtatMails = { actif: false, derniereSynchro: null, derniereTent
 const JOURS_GARDES = 21;
 const MAILS_MAX = 150;
 const TAILLE_EXTRAIT = 240;
+const TAILLE_TEXTE = 4000;
 const ALERTES_MAX = 200;
 
 const simple = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -120,10 +125,13 @@ const REGLES: [Etiquette, RegExp][] = [
   ['annulation', /annule|annulation|reporte|n.aura pas lieu|pas (de )?cours|ne pourrai pas assurer|absent/],
 ];
 
+/** Le mail sans la signature ni l'historique des réponses. */
+export const sansHistorique = (texte: string) =>
+  texte.split(/\n--\s*\n|\nle .{5,100} a [ée]crit\s?:|-{3,}\s*message d.origine|\n_{5,}\s*\nde ?:/i)[0].trim();
+
 /** Étiquettes d'un texte (sujet + début du mail, sans la signature ni l'historique). */
 export function etiquettesDe(texte: string): Etiquette[] {
-  const utile = texte.split(/\n--\s*\n|\nle .{5,100} a [ée]crit\s?:|-{3,}\s*message d.origine/i)[0].slice(0, 4000);
-  const t = simple(utile);
+  const t = simple(sansHistorique(texte).slice(0, TAILLE_TEXTE));
   return REGLES.filter(([, re]) => re.test(t)).map(([e]) => e);
 }
 
@@ -154,6 +162,41 @@ export class SynchroMails {
 
   async etat(id: string): Promise<EtatMails> {
     return { ...ETAT_VIDE, ...(await this.depot.lire<EtatMails>(id, 'etatmails')) };
+  }
+
+  /** Choix de l'élève : adresse d'expéditeur → catégorie imposée. */
+  async expediteurs(id: string): Promise<Record<string, Categorie>> {
+    return (await this.depot.lire<Record<string, Categorie>>(id, 'expediteurs')) ?? {};
+  }
+
+  /**
+   * Impose (ou retire, avec null) la catégorie d'un expéditeur, et l'applique tout de suite aux mails gardés.
+   * Un mail passé en « prof » ou « école » sans texte gardé sera relu à la prochaine synchro.
+   */
+  async corriger(id: string, adresse: string, categorie: Categorie | null): Promise<Mail[]> {
+    const cle = adresse.trim().toLowerCase();
+    const choix = await this.expediteurs(id);
+    if (categorie) choix[cle] = categorie;
+    else delete choix[cle];
+    await this.depot.ecrire(id, 'expediteurs', choix);
+    const planning = (await this.depot.lire<Evenement[]>(id, 'planning')) ?? [];
+    const profs = profsDuPlanning(planning);
+    const mails = ((await this.depot.lire<Mail[]>(id, 'mails')) ?? []).map((m) => {
+      if (m.adresse !== cle) return m;
+      const prof = profDe({ deNom: m.de, deAdresse: m.adresse }, profs);
+      const cat = categorie ?? categorieDe({ deNom: m.de, deAdresse: m.adresse }, prof);
+      const aLire = cat !== 'autre' && !m.texte;
+      return {
+        ...m, categorie: cat, corrige: !!categorie,
+        etiquettes: cat === 'autre' ? [] : etiquettesDe(`${m.sujet}\n${m.texte || m.extrait}`),
+        matiere: prof ? profs.get(prof)?.[0] ?? null : m.matiere,
+        // Sans texte : on l'oublie pour qu'il soit relu (et son texte gardé) à la prochaine synchro.
+        ...(aLire ? { id: `relire:${m.id}` } : {}),
+        texte: cat === 'autre' ? '' : m.texte,
+      };
+    });
+    await this.depot.ecrire(id, 'mails', mails);
+    return this.mails(id);
   }
 
   async mails(id: string): Promise<Mail[]> {
@@ -194,7 +237,10 @@ export class SynchroMails {
       // Liste vide après une désactivation : on repart de zéro, comme une première lecture.
       const premiere = !anciens?.length;
       const connus = new Map((anciens ?? []).map((m) => [m.id, m]));
+      // Mails à relire après une correction : on les traite comme nouveaux, sans alerte.
+      const aRelire = new Set((anciens ?? []).filter((m) => m.id.startsWith('relire:')).map((m) => m.id.slice(7)));
       const profs = profsDuPlanning(planning ?? []);
+      const choix = await this.expediteurs(id);
       const resultat: Mail[] = [];
       const nouveaux: Mail[] = [];
       for (const brut of boite) {
@@ -203,9 +249,9 @@ export class SynchroMails {
           resultat.push({ ...deja, nonLu: brut.nonLu });
           continue;
         }
-        const mail = await this.trier(brut, profs, client);
+        const mail = await this.trier(brut, profs, choix, client);
         resultat.push(mail);
-        nouveaux.push(mail);
+        if (!aRelire.has(brut.id)) nouveaux.push(mail);
       }
 
       // Première lecture : pas d'alerte, sinon tous les anciens mails sonneraient d'un coup.
@@ -241,9 +287,10 @@ export class SynchroMails {
   }
 
   /** Trie un mail ; ne lit le texte complet que pour les mails des profs et de l'école. */
-  private async trier(m: MailBrut, profs: Map<string, string[]>, client: PartageClient): Promise<Mail> {
+  private async trier(m: MailBrut, profs: Map<string, string[]>, choix: Record<string, Categorie>, client: PartageClient): Promise<Mail> {
     const prof = profDe(m, profs);
-    const categorie = categorieDe(m, prof);
+    const impose = choix[m.deAdresse];
+    const categorie = impose ?? categorieDe(m, prof);
     let texte = m.extrait;
     if (categorie !== 'autre') {
       try {
@@ -257,8 +304,10 @@ export class SynchroMails {
       etiquettes: categorie === 'autre' ? [] : etiquettesDe(`${m.sujet}\n${texte}`),
       matiere: prof ? profs.get(prof)![0] ?? null : null,
       extrait: extraitDe(texte),
-      lien: `${this.base}/h/search?action=view&id=${encodeURIComponent(m.id)}`,
+      texte: categorie === 'autre' ? '' : sansHistorique(texte).slice(0, TAILLE_TEXTE),
+      lien: `${this.base}/`,
       nonLu: m.nonLu,
+      ...(impose ? { corrige: true } : {}),
     };
   }
 }

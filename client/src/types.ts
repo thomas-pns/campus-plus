@@ -144,7 +144,12 @@ export interface Mail {
   categorie: 'prof' | 'ecole' | 'autre';
   etiquettes: EtiquetteMail[];
   matiere: string | null;
+  /** Texte du mail (profs et école seulement), sans la signature ni l'historique. */
+  texte?: string;
   lien: string;
+  /** Vrai si la catégorie vient d'un choix de l'élève pour cet expéditeur. */
+  corrige?: boolean;
+  nonLu?: boolean;
 }
 
 export interface EtatMails {

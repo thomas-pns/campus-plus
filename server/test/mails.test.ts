@@ -133,9 +133,33 @@ describe('mails de bout en bout', () => {
     expect(liste[1].etiquettes).toEqual(['devoir']);
     expect(liste[2].etiquettes).toEqual(['salle', 'examen']);
     expect(liste[4].etiquettes).toEqual([]); // élève : pas d'étiquette même si « salle » apparaît
-    expect(liste[0].lien).toBe(`${partage.base}/h/search?action=view&id=101`);
+    expect(liste[0].lien).toBe(`${partage.base}/`);
+    expect(liste[1].texte).toBe('Cette semaine nous corrigerons les exercices 10, 14, 15 et 16. Merci de les préparer.');
+    expect(liste[4].texte).toBe(''); // mail d'élève : pas de texte gardé
     expect(partage.lectures).toBe(4); // seulement profs et école
     expect(notifiees).toEqual([]); // première lecture : pas d'alerte
+  });
+
+  it('retient le choix de l’élève pour un expéditeur, le relit et l’applique aux mails suivants', async () => {
+    await req('PUT', '/api/mails/actif', { actif: true });
+    const lectures = partage.lectures;
+    const rep = (await req('PUT', '/api/mails/expediteur', { adresse: 'Nina.Petit@cpe.fr', categorie: 'prof' })).json();
+    expect(rep.mails.find((m: { id: string }) => m.id === 'relire:105')).toMatchObject({ categorie: 'prof', corrige: true });
+    await mails.synchroniser(id);
+    const apres = await mails.mails(id);
+    expect(apres.find((m) => m.id === '105')).toMatchObject({ categorie: 'prof', corrige: true, etiquettes: ['salle'] });
+    expect(apres.some((m) => m.id.startsWith('relire:'))).toBe(false);
+    expect(partage.lectures).toBe(lectures + 1);
+    expect(notifiees).toEqual([]); // relu, pas nouveau : pas d'alerte
+
+    partage.mails.push({ id: '109', date: Date.now(), sujet: 'Groupe projet', texte: 'On se retrouve demain.', deNom: 'Nina Petit', deAdresse: 'nina.petit@cpe.fr' });
+    await mails.synchroniser(id);
+    expect((await mails.mails(id)).find((m) => m.id === '109')).toMatchObject({ categorie: 'prof' });
+
+    // Retirer le choix : on revient au tri automatique.
+    const retour = (await req('PUT', '/api/mails/expediteur', { adresse: 'nina.petit@cpe.fr', categorie: null })).json();
+    expect(retour.mails.find((m: { id: string }) => m.id === '105')).toMatchObject({ categorie: 'autre', corrige: false, texte: '' });
+    expect((await req('PUT', '/api/mails/expediteur', { adresse: 'x@y.z', categorie: 'chef' })).statusCode).toBe(400);
   });
 
   it('ne garde pas le texte entier sur le serveur, seulement un extrait, chiffré', async () => {

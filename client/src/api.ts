@@ -210,3 +210,6 @@ export const supprimerTache = (id: string) => appel<{ ok: true }>('DELETE', `/ap
 export const marquerEcheance = (id: number, fait: boolean) => appel<{ echeancesFaites: number[] }>('PUT', `/api/echeances/${id}/fait`, { fait });
 
 export const activerMails = (actif: boolean) => appel<{ etat: EtatMails; mails: Mail[] }>('PUT', '/api/mails/actif', { actif });
+
+export const corrigerExpediteur = (adresse: string, categorie: Mail['categorie'] | null) =>
+  appel<{ etat: EtatMails; mails: Mail[] }>('PUT', '/api/mails/expediteur', { adresse, categorie });

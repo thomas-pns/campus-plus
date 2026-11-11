@@ -71,7 +71,7 @@ Adresse mail complète + même mot de passe que MyCPE. Accès par l'API SOAP de 
 - `SearchRequest` (`urn:zimbraMail`, `query: "in:inbox"`, `sortBy: dateDesc`) → `m[]` : `id`, `d` (date ms), `su` (objet), `fr` (début du texte), `e[]` (expéditeur `t: "f"`, `a` adresse, `p` nom).
   Pas de filtre de date dans la requête : son format dépend de la langue du compte.
 - `GetMsgRequest` (`read: 0`, `html: 1`, `neuter: 1`) → texte complet, sans marquer le mail comme lu.
-- Le lien « Voir le mail » (`/h/search?action=view&id=…`, interface classique) n'est pas vérifié.
+- L'interface HTML classique (`/h/…`) n'existe pas sur PARTAGE (404) : l'appli affiche le texte du mail elle-même et ne fait qu'ouvrir la boîte.
 
 ## Planning iCal (secours)
 
