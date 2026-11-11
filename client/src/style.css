@@ -388,3 +388,21 @@ a.bouton { text-decoration: none; }
 .connexion-od { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 18px 16px; text-align: center; }
 .connexion-od p { color: var(--moyen); line-height: 1.4; }
 .code-od { font-size: 30px; font-weight: 800; letter-spacing: .12em; font-variant-numeric: tabular-nums; padding: 8px 16px; border-radius: 14px; background: var(--bleu-pale); color: var(--lien); user-select: all; -webkit-user-select: all; }
+
+/* ---------- Examens à venir ---------- */
+.ligne-examen { gap: 12px; }
+.date-examen { flex: none; width: 44px; height: 46px; border-radius: 12px; background: var(--rouge-pale); color: var(--rouge); display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.05; }
+.date-examen strong { font-size: 18px; font-weight: 800; }
+.date-examen span { font-size: 11px; font-weight: 700; text-transform: uppercase; }
+
+/* ---------- Visite guidée (bulles) ---------- */
+.visite-calque { position: absolute; inset: 0; z-index: 40; }
+.visite-fond { position: absolute; inset: 0; background: var(--voile); }
+.visite-trou { position: absolute; border-radius: 18px; box-shadow: 0 0 0 9999px var(--voile), 0 0 0 3px var(--lien); transition: top .25s, left .25s, width .25s, height .25s; pointer-events: none; }
+.visite-bulle { position: absolute; left: 16px; right: 16px; max-width: 420px; margin: 0 auto; background: var(--carte); border-radius: 20px; padding: 16px 18px 14px; box-shadow: 0 12px 40px rgba(0,0,0,.25); animation: monte .2s cubic-bezier(.2,.85,.25,1); }
+.visite-bulle h2 { font-size: 18px; font-weight: 800; margin: 2px 0 4px; }
+.visite-bulle p#visite-texte { color: var(--moyen); line-height: 1.42; }
+.visite-etape { font-size: 12px; font-weight: 700; color: var(--lien); text-transform: uppercase; letter-spacing: .04em; }
+.visite-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 12px; }
+.visite-actions .lien-bouton { margin-right: auto; }
+@media (prefers-reduced-motion: reduce) { .visite-bulle, .visite-trou { animation: none; transition: none; } }

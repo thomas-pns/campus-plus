@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto';
 import type { Evenement } from './sources/planning.js';
 import type { Note } from './sources/aurion.js';
 
-export type TypeAlerte = 'salle' | 'horaire' | 'supprime' | 'ajoute' | 'note' | 'fichier' | 'devoir' | 'mail';
+export type TypeAlerte = 'salle' | 'horaire' | 'supprime' | 'ajoute' | 'note' | 'fichier' | 'devoir' | 'mail' | 'examen';
 
 export interface Alerte {
   id: string;
@@ -23,6 +23,11 @@ export interface Alerte {
 
 /** On ne signale que les changements proches : au-delà, le planning bouge encore beaucoup. */
 export const HORIZON_JOURS = 14;
+/** Les examens sont signalés dès leur publication, même longtemps à l'avance. */
+export const HORIZON_EXAMENS_JOURS = 120;
+/** Rappels avant un examen, en jours. */
+export const RAPPELS_EXAMEN = [14, 7, 1];
+const JOUR_MS = 24 * 3600 * 1000;
 
 const heure = (iso: string) => iso.slice(11, 16).replace(':', 'h');
 const jour = (iso: string) => {
@@ -48,7 +53,7 @@ export function comparerPlanning(avant: Evenement[], apres: Evenement[], mainten
   const finFenetre = debutFenetre + HORIZON_JOURS * 24 * 3600 * 1000;
   const proche = (e: Evenement) => {
     const t = Date.parse(e.debut);
-    return t >= debutFenetre && t <= finFenetre;
+    return t >= debutFenetre && (t <= finFenetre || (e.categorie === 'examen' && t <= debutFenetre + HORIZON_EXAMENS_JOURS * JOUR_MS));
   };
   const date = maintenant.toISOString();
   const a = parCle(avant.filter(proche));
@@ -192,6 +197,31 @@ export function comparerEcheances(avant: EcheanceIndexee[], apres: EcheanceIndex
       id: identifiant('devoir', String(e.id), String(e.date)), type: 'devoir', date, cours: e.cours,
       titre: `${ancienne ? 'Date limite modifiée' : 'Nouveau devoir'} : ${e.nom}`,
       detail: `${e.nomCours} · à rendre ${dateCourte(e.date)}`,
+    });
+  }
+  return alertes;
+}
+
+/**
+ * Rappels avant chaque examen : à 2 semaines, 1 semaine et la veille. Un seul rappel par palier, et
+ * seulement le plus proche s'il y en a plusieurs à rattraper (un examen publié 5 jours avant donne un seul rappel).
+ */
+export function rappelsExamens(planning: Evenement[], maintenant: Date): Alerte[] {
+  const t = maintenant.getTime();
+  const date = maintenant.toISOString();
+  const alertes: Alerte[] = [];
+  for (const e of parCle(planning.filter((e) => e.categorie === 'examen')).values()) {
+    const ecart = Date.parse(e.debut) - t;
+    if (ecart <= 0) continue;
+    const palier = [...RAPPELS_EXAMEN].sort((a, b) => a - b).find((p) => ecart <= p * JOUR_MS);
+    if (palier === undefined) continue;
+    const aujourdhui = new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Paris' }).format(maintenant);
+    const jours = Math.round((Date.parse(e.debut.slice(0, 10)) - Date.parse(aujourdhui)) / JOUR_MS);
+    const delai = jours <= 0 ? 'aujourd’hui' : jours === 1 ? 'demain' : jours === 7 ? 'dans une semaine' : jours === 14 ? 'dans 2 semaines' : `dans ${jours} jours`;
+    alertes.push({
+      id: identifiant('examen', e.cle, String(palier)), type: 'examen', date, cleEvenement: e.cle,
+      titre: `Examen ${delai} : ${e.matiere}`,
+      detail: `${quand(e)}${e.salles.length ? `, salle ${e.salles.join(' / ')}` : ''}`,
     });
   }
   return alertes;

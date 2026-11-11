@@ -234,7 +234,7 @@ export function App() {
         ) : onglet === 'planning' ? (
           <Planning d={d} maintenant={maintenant} surOuvrir={setFiche} />
         ) : onglet === 'cours' ? (
-          <CoursEcran d={d} maintenant={maintenant} vus={fichiersVus} coursOuvert={coursOuvert} surOuvrirCours={setCoursOuvert} surAjouterDevoir={devoirDepuisCours} />
+          <CoursEcran d={d} maintenant={maintenant} vus={fichiersVus} coursOuvert={coursOuvert} surOuvrirCours={setCoursOuvert} surAjouterDevoir={devoirDepuisCours} surOuvrir={setFiche} />
         ) : onglet === 'alertes' ? (
           <Alertes d={d} maintenant={maintenant} vuesJusqua={vuesJusqua} surOuvrir={setFiche} surAller={choisir} surOuvrirCours={ouvrirCours}
             surDevoirs={() => { setOnglet('aujourdhui'); setPage('devoirs'); }}
@@ -256,7 +256,7 @@ export function App() {
         ))}
       </nav>
 
-      {visite && <Visite surFin={() => setVisite(false)} />}
+      {visite && <Visite surFin={() => setVisite(false)} surAller={(o) => { setPage(null); choisir(o); }} />}
       {fiche && <FicheEvenement e={fiche} surFermer={fermerFiche} surAjouterDevoir={d.afaire && !horsLigne ? devoirDepuisCreneau : undefined} />}
       {brouillon && d.afaire && (
         <AjoutDevoir b={brouillon} surFermer={fermerBrouillon}

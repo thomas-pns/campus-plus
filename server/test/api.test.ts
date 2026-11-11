@@ -140,13 +140,13 @@ describe('serveur Campus+ de bout en bout (faux WebAurion)', () => {
     expect(rep.json().etat).toMatchObject({ erreur: null, derniereSynchro: new Date(horloge).toISOString() });
     expect(faux.connexionsReussies).toBe(2);
     const alertes = (await get('/api/alertes', cookies)).json().alertes;
-    expect(alertes.map((a: { type: string }) => a.type).sort()).toEqual(['note', 'salle']);
+    expect(alertes.map((a: { type: string }) => a.type).sort()).toEqual(['examen', 'note', 'salle']);
     expect((await get('/api/planning', cookies)).json().evenements[0].salles).toEqual(['F002']);
 
     // Une nouvelle synchro sans changement ne recrée pas les alertes.
     horloge += 61_000;
     await app.inject({ method: 'POST', url: '/api/synchro', cookies });
-    expect((await get('/api/alertes', cookies)).json().alertes).toHaveLength(2);
+    expect((await get('/api/alertes', cookies)).json().alertes).toHaveLength(3);
   });
 
   it('garde les anciennes données si une synchro échoue', async () => {

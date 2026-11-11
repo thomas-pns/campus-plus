@@ -51,7 +51,7 @@ export interface Absence {
 
 export interface Alerte {
   id: string;
-  type: 'salle' | 'horaire' | 'supprime' | 'ajoute' | 'note' | 'fichier' | 'devoir' | 'mail';
+  type: 'salle' | 'horaire' | 'supprime' | 'ajoute' | 'note' | 'fichier' | 'devoir' | 'mail' | 'examen';
   date: string;
   titre: string;
   detail: string;

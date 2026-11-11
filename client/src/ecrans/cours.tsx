@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'preact/hooks';
-import type { Cours, Donnees, ElementCours, Fichier } from '../types';
+import type { Cours, Donnees, ElementCours, Evenement, Fichier } from '../types';
 import { correspond, fichiersDe, nomCourt, parType, poleDe, semestreDe, sigle, taille, trierSemestres, typeFichier } from '../cours';
 import { affichageCours, choisirAffichage, type Affichage } from '../api';
 import { ilYA } from '../dates';
-import { Entete, Icone, Segments, Vide, type NomIcone } from '../composants';
+import { Entete, Icone, LigneExamen, Segments, Vide, type NomIcone } from '../composants';
+import { examensAVenir } from '../planning';
+import { memeMatiere } from '../afaire';
 
 interface Props {
   d: Donnees;
@@ -13,12 +15,16 @@ interface Props {
   coursOuvert: number | null;
   surOuvrirCours: (id: number | null) => void;
   surAjouterDevoir: (c: Cours) => void;
+  surOuvrir: (e: Evenement) => void;
 }
 
-export function CoursEcran({ d, maintenant, vus, coursOuvert, surOuvrirCours, surAjouterDevoir }: Props) {
+export function CoursEcran({ d, maintenant, vus, coursOuvert, surOuvrirCours, surAjouterDevoir, surOuvrir }: Props) {
   const cours = d.cours ?? [];
   const ouvert = coursOuvert !== null ? cours.find((c) => c.id === coursOuvert) : undefined;
-  if (ouvert) return <DetailCours c={ouvert} vus={vus} surRetour={() => surOuvrirCours(null)} surAjouterDevoir={() => surAjouterDevoir(ouvert)} />;
+  if (ouvert) {
+    const examens = examensAVenir(d.planning, maintenant, 120).filter((e) => memeMatiere(e.matiere, ouvert.nom));
+    return <DetailCours c={ouvert} vus={vus} examens={examens} maintenant={maintenant} surOuvrir={surOuvrir} surRetour={() => surOuvrirCours(null)} surAjouterDevoir={() => surAjouterDevoir(ouvert)} />;
+  }
   return <ListeCours d={d} maintenant={maintenant} vus={vus} surOuvrirCours={surOuvrirCours} />;
 }
 
@@ -148,7 +154,17 @@ function LigneFichier({ f, sous, nouveau }: { f: Fichier; sous?: string; nouveau
 
 const AFFICHAGES = [{ id: 'type', nom: 'Par type' }, { id: 'prof', nom: 'Rangement du prof' }] as const;
 
-function DetailCours({ c, vus, surRetour, surAjouterDevoir }: { c: Cours; vus: Set<string> | null; surRetour: () => void; surAjouterDevoir: () => void }) {
+interface PropsDetail {
+  c: Cours;
+  vus: Set<string> | null;
+  examens: Evenement[];
+  maintenant: number;
+  surOuvrir: (e: Evenement) => void;
+  surRetour: () => void;
+  surAjouterDevoir: () => void;
+}
+
+function DetailCours({ c, vus, examens, maintenant, surOuvrir, surRetour, surAjouterDevoir }: PropsDetail) {
   const pole = poleDe(c);
   const [affichage, setAffichage] = useState<Affichage>(() => affichageCours(c.id));
   const changer = (a: Affichage) => { setAffichage(a); choisirAffichage(c.id, a); };
@@ -168,6 +184,14 @@ function DetailCours({ c, vus, surRetour, surAjouterDevoir }: { c: Cours; vus: S
           <Icone nom="plus" taille={16} epaisseur={2.6} />&nbsp;Devoir pour ce cours
         </button>
       </header>
+      {examens.length > 0 && (
+        <section class="bloc" aria-label="Examens à venir">
+          <h2 class="titre-groupe rouge">{examens.length > 1 ? 'Examens à venir' : 'Examen à venir'}</h2>
+          <div class="carte liste">
+            {examens.map((e) => <LigneExamen e={e} maintenant={maintenant} surOuvrir={surOuvrir} />)}
+          </div>
+        </section>
+      )}
       {aDesFichiers && <Segments options={AFFICHAGES} valeur={affichage} surChoix={changer} etiquette="Affichage des fichiers" />}
 
       {affichage === 'type' && aDesFichiers ? (

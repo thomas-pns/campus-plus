@@ -106,3 +106,15 @@ export function semaineDe(evts: Evenement[], lundi: string): Semaine {
   const heureFin = Math.max(18, ...blocs.map((b) => Math.ceil(b.finMin / 60)));
   return { jours: tous.slice(0, dernier), heureDebut, heureFin, colonnes };
 }
+
+/** Examens à venir dans les `jours` prochains jours, du plus proche au plus lointain (un par créneau). */
+export function examensAVenir(evts: Evenement[], maintenant: number, jours = 45): Evenement[] {
+  const limite = maintenant + jours * 86_400_000;
+  const vus = new Set<string>();
+  return [...evts].sort(parDebut).filter((e) => {
+    const t = Date.parse(e.fin);
+    if (e.categorie !== 'examen' || t <= maintenant || Date.parse(e.debut) > limite || vus.has(e.cle)) return false;
+    vus.add(e.cle);
+    return true;
+  });
+}

@@ -79,7 +79,7 @@ describe('notifications de bout en bout (faux WebAurion, faux service push)', ()
   it('donne la clé publique et les réglages par défaut', async () => {
     expect((await req('GET', '/api/notifications')).json()).toEqual({
       cle: 'cle-publique-de-test', appareils: 0,
-      types: { salle: true, horaire: true, ajoute: true, supprime: true, note: true, fichier: true, devoir: true, mail: true },
+      types: { salle: true, horaire: true, ajoute: true, supprime: true, note: true, fichier: true, devoir: true, mail: true, examen: true },
     });
   });
 
@@ -92,18 +92,19 @@ describe('notifications de bout en bout (faux WebAurion, faux service push)', ()
   it('prévient l’élève abonné quand une synchro trouve du nouveau', async () => {
     expect((await req('POST', '/api/notifications/abonnement', { abonnement: abonnement() })).statusCode).toBe(200);
     await changerEtSynchroniser();
-    expect(envoyes.map((e) => e.message.titre).sort()).toEqual(['Changement de salle : Algèbre linéaire (Cours)', 'Note publiée : Algèbre linéaire']);
+    expect(envoyes.map((e) => e.message.titre).filter((t) => !t.startsWith('Examen')).sort()).toEqual(['Changement de salle : Algèbre linéaire (Cours)', 'Note publiée : Algèbre linéaire']);
+    const avant = envoyes.length;
     expect(envoyes[0].abonnement.endpoint).toBe(abonnement().endpoint);
 
     // La même alerte n'est pas renvoyée à la synchro suivante.
     horloge += 61_000;
     await req('POST', '/api/synchro');
-    expect(envoyes).toHaveLength(2);
+    expect(envoyes).toHaveLength(avant);
   });
 
   it('respecte les types choisis', async () => {
     await req('POST', '/api/notifications/abonnement', { abonnement: abonnement() });
-    const rep = await req('PUT', '/api/notifications/types', { note: false });
+    const rep = await req('PUT', '/api/notifications/types', { note: false, examen: false });
     expect(rep.json().types).toMatchObject({ note: false, salle: true });
     // Un type inconnu est ignoré.
     expect((await req('PUT', '/api/notifications/types', { inconnu: true })).json().types).toMatchObject({ note: false, salle: true });

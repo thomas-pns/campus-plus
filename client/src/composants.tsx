@@ -2,7 +2,7 @@
 import type { ComponentChildren } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { Evenement } from './types';
-import { heureDe, jourEnToutesLettres, jourDe } from './dates';
+import { heureDe, jourEnToutesLettres, jourDe, jourParis, libelleJour } from './dates';
 import { CATEGORIES, salleDe, salleDeduite, titreDe } from './planning';
 
 /* ---------- Icônes (traits simples, dessinées pour l'appli) ---------- */
@@ -14,6 +14,7 @@ const TRACES = {
   diplome: 'M2 9l10-5l10 5l-10 5L2 9zM6 11v5c0 1.5 3 3 6 3s6-1.5 6-3v-5',
   gauche: 'M15 6l-6 6l6 6',
   droite: 'M9 6l6 6l-6 6',
+  bas: 'M6 9l6 6l6-6',
   actualiser: 'M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5',
   fermer: 'M6 6l12 12M18 6L6 18',
   lieu: 'M12 21s-6-5.5-6-11a6 6 0 0 1 12 0c0 5.5-6 11-6 11zM12 8a2 2 0 1 0 0 4a2 2 0 0 0 0-4z',
@@ -96,6 +97,25 @@ export function LigneEvenement({ e, passe, surOuvrir }: { e: Evenement; passe?: 
         <span class="ligne-titre">{titreDe(e)}</span>
         {sousTitre && <span class="ligne-sous">{sousTitre}</span>}
       </span>
+    </button>
+  );
+}
+
+/** Examen à venir : date en vignette, matière, heure et salle, et le compte à rebours. */
+export function LigneExamen({ e, maintenant, surOuvrir }: { e: Evenement; maintenant: number; surOuvrir: (e: Evenement) => void }) {
+  const jours = Math.round((Date.parse(jourDe(e.debut)) - Date.parse(jourParis(maintenant))) / 86_400_000);
+  const salle = salleDe(e);
+  return (
+    <button type="button" class="rangee ligne-examen" onClick={() => surOuvrir(e)}>
+      <span class="date-examen" aria-hidden="true">
+        <strong>{Number(jourDe(e.debut).slice(8))}</strong>
+        <span>{libelleJour(jourDe(e.debut), { month: 'short' }).replace('.', '')}</span>
+      </span>
+      <span class="rangee-texte">
+        <strong>{titreDe(e)}</strong>
+        <span>{[libelleJour(jourDe(e.debut), { weekday: 'long' }), heureDe(e.debut), salle].filter(Boolean).join(' · ')}</span>
+      </span>
+      <span class={`rangee-valeur ${jours <= 7 ? 'rouge' : ''}`}>{jours <= 0 ? 'Aujourd’hui' : jours === 1 ? 'Demain' : `J-${jours}`}</span>
     </button>
   );
 }

@@ -14,6 +14,7 @@ const TYPES: Record<Alerte['type'], { nom: string; classe: string; icone: NomIco
   fichier: { nom: 'Cours', classe: 'c-td', icone: 'fichier' },
   devoir: { nom: 'Devoir', classe: 'c-tp', icone: 'liste' },
   mail: { nom: 'Mail', classe: 'c-cours', icone: 'mail' },
+  examen: { nom: 'Examen', classe: 'c-examen', icone: 'calendrier' },
 };
 
 interface Props {

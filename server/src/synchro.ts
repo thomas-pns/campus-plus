@@ -4,7 +4,7 @@
  */
 import { AurionClient, ErreurIdentifiants, type Absence, type Note } from './sources/aurion.js';
 import type { Evenement } from './sources/planning.js';
-import { comparerNotes, comparerPlanning, type Alerte } from './alertes.js';
+import { comparerNotes, comparerPlanning, rappelsExamens, type Alerte } from './alertes.js';
 import type { Comptes } from './comptes.js';
 import type { Depot } from './depot.js';
 import type { SynchroCours } from './cours.js';
@@ -101,6 +101,7 @@ export class Synchro {
       const nouvelles: Alerte[] = [
         ...(ancienPlanning ? comparerPlanning(ancienPlanning, planning, t) : []),
         ...(anciennesNotes ? comparerNotes(anciennesNotes, notes, t) : []),
+        ...(ancienPlanning ? rappelsExamens(planning, t) : []),
       ];
       if (nouvelles.length) {
         const anciennes = (await this.depot.lire<Alerte[]>(id, 'alertes')) ?? [];

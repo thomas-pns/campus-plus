@@ -1,7 +1,8 @@
 import type { Donnees, Evenement } from '../types';
 import { ajouterJours, dans, heureDe, initialesDe, jourDe, jourEnToutesLettres, jourParis, prenomDe } from '../dates';
-import { aLaUne, CATEGORIES, duJour, prochainJourAvecCours, salleDe, salleDeduite, titreDe } from '../planning';
-import { Icone, LigneEvenement, Vide } from '../composants';
+import { aLaUne, CATEGORIES, duJour, examensAVenir, prochainJourAvecCours, salleDe, salleDeduite, titreDe } from '../planning';
+import { Icone, LigneEvenement, LigneExamen, Vide } from '../composants';
+import { lirePreferences } from '../preferences';
 import { aVenir, lignes } from '../afaire';
 import { LigneAFaire } from './devoirs';
 import type { Ligne } from '../afaire';
@@ -28,6 +29,8 @@ export function Aujourdhui({ d, maintenant, surOuvrir, surReglages, surAller, su
 
   const derniereNote = [...d.notes].reverse().find((n) => n.note !== null);
   const alertesRecentes = d.alertes.filter((a) => maintenant - Date.parse(a.date) < SEPT_JOURS);
+  const examens = examensAVenir(d.planning, maintenant);
+  const { cacherNote } = lirePreferences();
   const urgents = d.afaire ? aVenir(lignes(d.afaire.echeances, d.afaire.taches, maintenant), maintenant) : [];
 
   return (
@@ -71,6 +74,15 @@ export function Aujourdhui({ d, maintenant, surOuvrir, surReglages, surAller, su
         )}
       </section>
 
+      {examens.length > 0 && (
+        <section class="bloc" aria-label="Examens à venir">
+          <h2 class="titre-bloc">Examens à venir</h2>
+          <div class="carte liste">
+            {examens.slice(0, 3).map((e) => <LigneExamen e={e} maintenant={maintenant} surOuvrir={surOuvrir} />)}
+          </div>
+        </section>
+      )}
+
       {d.afaire && (
         <section class="bloc" aria-label="À faire">
           <div class="titre-avec-lien">
@@ -90,7 +102,12 @@ export function Aujourdhui({ d, maintenant, surOuvrir, surReglages, surAller, su
       <section class="tuiles" aria-label="Nouveautés">
         <button type="button" class="tuile" onClick={() => surAller('scolarite')}>
           <span class="tuile-titre">Dernière note</span>
-          {derniereNote ? (
+          {derniereNote && cacherNote ? (
+            <>
+              <span class="tuile-valeur">••<small>/20</small></span>
+              <span class="tuile-texte">{derniereNote.cours} · touche pour voir</span>
+            </>
+          ) : derniereNote ? (
             <>
               <span class="tuile-valeur">{String(derniereNote.note).replace('.', ',')}<small>/20</small></span>
               <span class="tuile-texte">{derniereNote.cours} · {derniereNote.epreuve}</span>

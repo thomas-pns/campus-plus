@@ -3,7 +3,8 @@ import type { Donnees } from '../types';
 import { ilYA, initialesDe } from '../dates';
 import { Icone, Segments } from '../composants';
 import { choisirTheme, lireTheme, type Theme } from '../theme';
-import { ReglagesNotifications } from './notifications';
+import { Interrupteur, ReglagesNotifications } from './notifications';
+import { changerPreferences, lirePreferences } from '../preferences';
 import { ReglagesOneDrive } from './onedrive';
 
 interface Props {
@@ -21,6 +22,7 @@ export function Reglages({ d, maintenant, horsLigne, surRetour, surActualiser, s
   const [occupe, setOccupe] = useState<'' | 'actualiser' | 'deconnexion' | 'suppression'>('');
   const [confirmer, setConfirmer] = useState(false);
   const [theme, setTheme] = useState<Theme>(lireTheme);
+  const [prefs, setPrefs] = useState(lirePreferences);
   const lancer = (quoi: typeof occupe, action: () => Promise<void>) => {
     if (occupe) return;
     setOccupe(quoi);
@@ -41,6 +43,24 @@ export function Reglages({ d, maintenant, horsLigne, surRetour, surActualiser, s
           <span>Compte CPE connecté</span>
         </span>
       </div>
+
+      <section class="bloc">
+        <h2 class="titre-groupe">Apparence et accueil</h2>
+        <Segments options={[{ id: 'auto', nom: 'Auto' }, { id: 'clair', nom: 'Clair' }, { id: 'sombre', nom: 'Sombre' }] as const}
+          valeur={theme} etiquette="Thème" surChoix={(t) => { setTheme(t); choisirTheme(t); }} />
+        <div class="carte liste">
+          <div class="rangee">
+            <span class="icone-rangee gris"><Icone nom="note" taille={17} epaisseur={2.2} /></span>
+            <span class="rangee-libelle">Cacher ma dernière note sur l’accueil</span>
+            <Interrupteur actif={prefs.cacherNote} libelle="Cacher ma dernière note sur l’accueil" surChange={(v) => setPrefs(changerPreferences({ cacherNote: v }))} />
+          </div>
+        </div>
+        <p class="petit-texte">« Auto » suit le réglage de ton téléphone. La note cachée reste visible dans Scolarité.</p>
+      </section>
+
+      <ReglagesNotifications horsLigne={horsLigne} />
+
+      <ReglagesOneDrive horsLigne={horsLigne} maintenant={maintenant} />
 
       <section class="bloc">
         <h2 class="titre-groupe">Serveur</h2>
@@ -64,9 +84,22 @@ export function Reglages({ d, maintenant, horsLigne, surRetour, surActualiser, s
         </button>
       </section>
 
-      <ReglagesNotifications horsLigne={horsLigne} />
-
-      <ReglagesOneDrive horsLigne={horsLigne} maintenant={maintenant} />
+      <section class="bloc">
+        <h2 class="titre-groupe">Aide et à propos</h2>
+        <div class="carte liste">
+          <button type="button" class="rangee" onClick={surVisite}>
+            <span class="icone-rangee bleu"><Icone nom="soleil" taille={17} epaisseur={2.2} /></span>
+            <span class="rangee-libelle">Revoir la visite guidée</span>
+            <span class="rangee-valeur"><Icone nom="droite" taille={14} epaisseur={2.4} /></span>
+          </button>
+          <a class="rangee" href="https://github.com/thomas-pns/campus-plus" target="_blank" rel="noopener noreferrer">
+            <span class="icone-rangee noir"><Icone nom="code" taille={17} epaisseur={2.2} /></span>
+            <span class="rangee-libelle">Code source sur GitHub</span>
+            <span class="rangee-valeur"><Icone nom="droite" taille={14} epaisseur={2.4} /></span>
+          </a>
+        </div>
+        <p class="petit-texte">Campus+ {__VERSION__} · projet étudiant non officiel, sans lien avec CPE Lyon.</p>
+      </section>
 
       <section class="bloc">
         <h2 class="titre-groupe">Compte</h2>
@@ -90,30 +123,6 @@ export function Reglages({ d, maintenant, horsLigne, surRetour, surActualiser, s
           </div>
         )}
         <p class="petit-texte">Ton mot de passe CPE est gardé chiffré sur le serveur : il lui sert à récupérer ton planning et tes notes à ta place.</p>
-      </section>
-
-      <section class="bloc">
-        <h2 class="titre-groupe">Apparence</h2>
-        <Segments options={[{ id: 'auto', nom: 'Auto' }, { id: 'clair', nom: 'Clair' }, { id: 'sombre', nom: 'Sombre' }] as const}
-          valeur={theme} etiquette="Thème" surChoix={(t) => { setTheme(t); choisirTheme(t); }} />
-        <p class="petit-texte">« Auto » suit le réglage de ton téléphone.</p>
-      </section>
-
-      <section class="bloc">
-        <h2 class="titre-groupe">À propos</h2>
-        <div class="carte liste">
-          <button type="button" class="rangee" onClick={surVisite}>
-            <span class="icone-rangee bleu"><Icone nom="soleil" taille={17} epaisseur={2.2} /></span>
-            <span class="rangee-libelle">Revoir la visite guidée</span>
-            <span class="rangee-valeur"><Icone nom="droite" taille={14} epaisseur={2.4} /></span>
-          </button>
-          <a class="rangee" href="https://github.com/thomas-pns/campus-plus" target="_blank" rel="noopener noreferrer">
-            <span class="icone-rangee noir"><Icone nom="code" taille={17} epaisseur={2.2} /></span>
-            <span class="rangee-libelle">Code source sur GitHub</span>
-            <span class="rangee-valeur"><Icone nom="droite" taille={14} epaisseur={2.4} /></span>
-          </a>
-        </div>
-        <p class="petit-texte">Campus+ {__VERSION__} · projet étudiant non officiel, sans lien avec CPE Lyon.</p>
       </section>
     </>
   );

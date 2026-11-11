@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { comparerNotes, comparerPlanning, moyennesParCours } from '../src/alertes.js';
+import { comparerNotes, comparerPlanning, moyennesParCours, rappelsExamens } from '../src/alertes.js';
 import { lireEvenement, type Evenement } from '../src/sources/planning.js';
 import type { Note } from '../src/sources/aurion.js';
 
@@ -61,5 +61,30 @@ describe('notes', () => {
       { semestre: 'S5', module: 'Maths', cours: 'Signaux', moyenne: 14, epreuvesNotees: 1 },
       { semestre: 'S5', module: 'Maths', cours: 'Physique', moyenne: null, epreuvesNotees: 0 },
     ]);
+  });
+});
+
+describe('rappels d’examens', () => {
+  const exam = (debut: string, cle = 'x1') => ({ cle, debut, fin: debut, matiere: 'Signaux', type: 'Examen', categorie: 'examen', salles: ['D101'], intervenants: [], groupe: '', commentaire: '' }) as unknown as Evenement;
+  it('rappelle à 2 semaines, 1 semaine et la veille, une fois par palier', () => {
+    const e = exam('2026-11-24T10:30:00+01:00');
+    const a = rappelsExamens([e], new Date('2026-11-10T10:00:00Z'));
+    expect(a).toHaveLength(1);
+    expect(a[0].titre).toBe('Examen dans 2 semaines : Signaux');
+    expect(a[0].detail).toBe('24/11/2026 à 10h30, salle D101');
+    expect(rappelsExamens([e], new Date('2026-11-12T09:00:00Z'))[0].id).toBe(a[0].id);
+    const semaine = rappelsExamens([e], new Date('2026-11-17T10:00:00Z'))[0];
+    expect(semaine.titre).toBe('Examen dans une semaine : Signaux');
+    expect(semaine.id).not.toBe(a[0].id);
+    expect(rappelsExamens([e], new Date('2026-11-23T18:00:00Z'))[0].titre).toBe('Examen demain : Signaux');
+    expect(rappelsExamens([e], new Date('2026-11-24T08:00:00Z'))).toHaveLength(1);
+    expect(rappelsExamens([e], new Date('2026-11-25T10:00:00Z'))).toHaveLength(0);
+    expect(rappelsExamens([e], new Date('2026-10-01T10:00:00Z'))).toHaveLength(0);
+  });
+  it('signale un examen publié longtemps à l’avance', () => {
+    const avant: Evenement[] = [];
+    const apres = [exam('2027-01-12T08:00:00+01:00', 'p1')];
+    const a = comparerPlanning(avant, apres, new Date('2026-11-11T12:00:00Z'));
+    expect(a.map((x) => x.titre)).toEqual(['Nouvel examen : Signaux']);
   });
 });

@@ -12,6 +12,7 @@ const LIBELLES: Record<Alerte['type'], string> = {
   fichier: 'Nouveaux fichiers de cours',
   devoir: 'Nouveaux devoirs e-campus',
   mail: 'Mails des profs et de l’école',
+  examen: 'Rappels d’examens (2 semaines, 1 semaine, la veille)',
 };
 
 export function Interrupteur({ actif, libelle, surChange, desactive }: { actif: boolean; libelle: string; surChange: (v: boolean) => void; desactive?: boolean }) {
@@ -28,6 +29,7 @@ export function ReglagesNotifications({ horsLigne }: { horsLigne: boolean }) {
   const [etat, setEtat] = useState<api.EtatAppareil | null>(null);
   const [occupe, setOccupe] = useState(false);
   const [message, setMessage] = useState('');
+  const [details, setDetails] = useState(false);
 
   useEffect(() => {
     if (horsLigne) return;
@@ -96,10 +98,21 @@ export function ReglagesNotifications({ horsLigne }: { horsLigne: boolean }) {
               <span class="rangee-libelle">Sur cet appareil</span>
               <Interrupteur actif={actives} libelle="Notifications sur cet appareil" desactive={occupe || !reglages || etat === null} surChange={(v) => void basculer(v)} />
             </div>
-            {actives && reglages && (Object.keys(LIBELLES) as Alerte['type'][]).map((t) => (
+            {actives && reglages && (() => {
+              const types = Object.keys(LIBELLES) as Alerte['type'][];
+              const choisis = types.filter((t) => reglages.types[t] !== false).length;
+              return (
+                <button type="button" class="rangee" aria-expanded={details} onClick={() => setDetails(!details)}>
+                  <span class="icone-rangee gris"><Icone nom="liste" taille={17} epaisseur={2.2} /></span>
+                  <span class="rangee-libelle">Choisir les alertes</span>
+                  <span class="rangee-valeur">{choisis === types.length ? 'Toutes' : `${choisis} sur ${types.length}`}&nbsp;<Icone nom={details ? 'bas' : 'droite'} taille={14} epaisseur={2.4} /></span>
+                </button>
+              );
+            })()}
+            {actives && reglages && details && (Object.keys(LIBELLES) as Alerte['type'][]).map((t) => (
               <div class="rangee sous-rangee">
                 <span class="rangee-libelle">{LIBELLES[t]}</span>
-                <Interrupteur actif={reglages.types[t]} libelle={LIBELLES[t]} surChange={(v) => void changerType(t, v)} />
+                <Interrupteur actif={reglages.types[t] !== false} libelle={LIBELLES[t]} surChange={(v) => void changerType(t, v)} />
               </div>
             ))}
           </div>
