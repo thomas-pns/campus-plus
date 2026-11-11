@@ -85,9 +85,15 @@ export function Justificatif({ brouillon, surFermer }: { brouillon: Brouillon; s
                   {motifs?.map((m) => <option value={m}>{m}</option>)}
                 </select>
               </label>
-              <label>Justificatif (PDF, photo…)
-                <input type="file" accept=".pdf,.docx,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg" onChange={(e) => setFichier((e.target as HTMLInputElement).files?.[0] ?? null)} />
-              </label>
+              <div class="champ-fichier">
+                <span class="etiquette-champ">Justificatif (PDF, photo…)</span>
+                <label class="choix-fichier">
+                  <input type="file" accept=".pdf,.docx,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg" onChange={(e) => setFichier((e.target as HTMLInputElement).files?.[0] ?? null)} />
+                  <Icone nom="fichier" taille={18} />
+                  <span>{fichier ? fichier.name : 'Aucun fichier choisi'}</span>
+                  <strong>{fichier ? 'Changer' : 'Choisir'}</strong>
+                </label>
+              </div>
             </div>
             {(message || probleme) && <p class="petit-texte rouge">{message || probleme}</p>}
             <button type="button" class="bouton large" disabled={!!probleme} onClick={() => setEtape('relecture')}>Relire avant d’envoyer</button>

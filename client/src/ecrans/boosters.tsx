@@ -2,11 +2,19 @@
  * Notes en boosters : chaque nouvelle note arrive dans un paquet scellé qu'on ouvre d'un appui,
  * et la copie en sort. Plusieurs nouvelles notes : un paquet par note, l'un après l'autre.
  */
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
+import { Icone } from '../composants';
 import { createPortal } from 'preact/compat';
 import type { Note } from '../types';
 
 const CLE = 'campus-plus:notes-ouvertes';
+
+/** Notes d'exemple (visite guidée, essai depuis les réglages) : une de chaque couleur. */
+export const EXEMPLES: Note[] = [
+  { semestre: 'Semestre 5', module: 'Maths', cours: 'Algèbre linéaire', epreuve: 'Écrit 1', coefficient: 1, note: 16.5, motifAbsence: '' },
+  { semestre: 'Semestre 5', module: 'Info', cours: 'Développement logiciel', epreuve: 'Projet', coefficient: 2, note: 13, motifAbsence: '' },
+  { semestre: 'Semestre 5', module: 'Physique', cours: 'Physique des semi-conducteurs', epreuve: 'Écrit 1', coefficient: 1, note: 8.5, motifAbsence: '' },
+];
 export const cleNote = (n: Note) => `${n.semestre}|${n.cours}|${n.epreuve}|${n.note}`;
 
 /** Notes déjà ouvertes sur cet appareil. La première fois, toutes les notes existantes le sont. */
@@ -39,6 +47,9 @@ const palier = (n: number) => (n >= 16 ? 'or' : n >= 12 ? 'vert' : n >= 10 ? 'bl
 export function Boosters({ notes, surFin, demo }: { notes: Note[]; surFin: () => void; demo?: boolean }) {
   const [i, setI] = useState(0);
   const [ouvert, setOuvert] = useState(false);
+  const [coupe, setCoupe] = useState(0);
+  const [secoue, setSecoue] = useState(false);
+  const geste = useRef<{ x: number; largeur: number; bouge: boolean } | null>(null);
   const note = notes[i];
 
   useEffect(() => {
@@ -57,24 +68,51 @@ export function Boosters({ notes, surFin, demo }: { notes: Note[]; surFin: () =>
   const suivante = () => {
     if (i + 1 >= notes.length) return surFin();
     setOuvert(false);
+    setCoupe(0);
     setI(i + 1);
+  };
+  // Comme dans les jeux de cartes : on glisse le doigt le long du haut du paquet pour le découper.
+  const appui = (ev: PointerEvent) => {
+    if (ouvert) return;
+    const r = (ev.currentTarget as HTMLElement).getBoundingClientRect();
+    geste.current = { x: ev.clientX, largeur: r.width, bouge: false };
+    (ev.currentTarget as HTMLElement).setPointerCapture?.(ev.pointerId);
+  };
+  const glisse = (ev: PointerEvent) => {
+    const g = geste.current;
+    if (!g || ouvert) return;
+    const p = Math.max(0, Math.min(1, Math.abs(ev.clientX - g.x) / (g.largeur * 0.8)));
+    if (p > 0.04) g.bouge = true;
+    setCoupe(p);
+    if (p >= 1) { geste.current = null; ouvrir(); }
+  };
+  const lache = () => {
+    const g = geste.current;
+    geste.current = null;
+    if (ouvert) return;
+    if (g && coupe > 0.6) return ouvrir();
+    setCoupe(0);
+    if (g && !g.bouge) { setSecoue(true); setTimeout(() => setSecoue(false), 400); }
   };
   const p = palier(note.note);
 
   return createPortal(
-    <div class={`boosters palier-${p} ${ouvert ? 'ouvert' : ''}`} role="dialog" aria-modal="true" aria-label="Nouvelle note">
+    <div class={`boosters palier-${p} ${ouvert ? 'ouvert' : ''}`} role="dialog" aria-modal="true" aria-label="Nouvelle note" style={{ '--coupe': coupe }}>
       <button type="button" class="boosters-fermer" onClick={surFin} aria-label="Fermer">Fermer</button>
       {notes.length > 1 && <p class="boosters-compte">{i + 1} / {notes.length}</p>}
       <div class="booster-scene" key={i}>
         <span class="booster-rayons" aria-hidden="true" />
-        <button type="button" class="booster" onClick={ouvrir} disabled={ouvert} aria-label={`Ouvrir la note de ${note.cours}`}>
-          <span class="booster-haut" aria-hidden="true"><span class="booster-dents" /></span>
+        <button type="button" class={`booster ${secoue ? 'secoue' : ''} ${coupe > 0 ? 'en-coupe' : ''}`} disabled={ouvert} aria-label={`Ouvrir la note de ${note.cours}`}
+          onPointerDown={appui} onPointerMove={glisse} onPointerUp={lache} onPointerCancel={lache}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); ouvrir(); } }}>
+          <span class="booster-haut" aria-hidden="true"><span class="booster-dents" /><span class="booster-ligne" /></span>
           <span class="booster-corps" aria-hidden="true">
             <span class="booster-holo" />
-            <span class="booster-embleme">C+</span>
-            <span class="booster-logo">Campus+</span>
-            <span class="booster-titre">Nouvelle note</span>
+            <span class="booster-logo">Campus<b>+</b> · Édition {note.semestre.match(/semestre\s*\d+/i)?.[0] ?? 'notes'}</span>
+            <span class="booster-medaillon"><Icone nom="diplome" taille={34} epaisseur={2} /></span>
             <span class="booster-cours">{note.cours}</span>
+            <span class="booster-titre">Nouvelle note</span>
+            <span class="booster-epreuve">{note.epreuve}</span>
             <span class="booster-reflet" />
           </span>
         </button>
@@ -94,7 +132,7 @@ export function Boosters({ notes, surFin, demo }: { notes: Note[]; surFin: () =>
       <div class="boosters-bas">
         {ouvert
           ? <button type="button" class="bouton" onClick={suivante}>{i + 1 < notes.length ? 'Note suivante' : demo ? 'Fermer l’exemple' : 'Terminer'}</button>
-          : <p class="boosters-aide">Touche le paquet pour l’ouvrir</p>}
+          : <p class="boosters-aide">{coupe > 0 ? 'Continue jusqu’au bout…' : 'Glisse le doigt le long du haut pour l’ouvrir'}</p>}
       </div>
     </div>,
     document.getElementById('app') ?? document.body,

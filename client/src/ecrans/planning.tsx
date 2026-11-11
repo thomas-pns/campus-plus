@@ -3,6 +3,8 @@ import type { Donnees, Evenement } from '../types';
 import { ajouterJours, grilleMois, jourEnToutesLettres, moisDecale, jourParis, libelleJour, lundiDe, numeroSemaine, rangDansSemaine } from '../dates';
 import { CATEGORIES, duJour, salleDe, semaineDe, titreDe, type Bloc } from '../planning';
 import { Entete, Icone, LigneEvenement, Segments, Vide } from '../composants';
+import { lirePreferences } from '../preferences';
+import { sechable } from '../branleur';
 
 const VUES = [{ id: 'jour', nom: 'Jour' }, { id: 'semaine', nom: 'Semaine' }, { id: 'mois', nom: 'Mois' }] as const;
 type Vue = (typeof VUES)[number]['id'];
@@ -140,6 +142,7 @@ function BlocSemaine({ b, y, surOuvrir }: { b: Bloc; y: (m: number) => number; s
       onClick={() => surOuvrir(e)} aria-label={`${titreDe(e)}, ${e.type.trim() || cat.nom}, salle ${salleDe(e) || 'non précisée'}`}>
       <span class="bloc-salle">{salleDe(e)}</span>
       <span class="bloc-titre">{titreDe(e)}</span>
+      {lirePreferences().branleur && (sechable(e) ? <span class="bloc-emoji" aria-label="Facultatif">😴</span> : e.categorie === 'examen' ? <span class="bloc-emoji" aria-hidden="true">😵‍💫</span> : null)}
     </button>
   );
 }

@@ -21,7 +21,7 @@
 .c-neutre { --c: #4A5263; --c-fond: #EEF0F3; }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html, body { margin: 0; height: 100%; overflow: hidden; overscroll-behavior: none; background: var(--fond); }
+html, body { touch-action: manipulation; margin: 0; height: 100%; overflow: hidden; overscroll-behavior: none; background: var(--fond); }
 body { font-family: Inter, -apple-system, system-ui, sans-serif; color: var(--texte); font-size: 16px; line-height: 1.35; -webkit-text-size-adjust: 100%; }
 /* Comme une appli : pas de sélection de texte ni de menu « Copier » sur les boutons au moindre appui long. */
 #app { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
@@ -591,3 +591,33 @@ a.bouton { text-decoration: none; }
 .copie { transform: translateY(70px) scale(.6) rotateX(70deg); }
 .boosters.palier-sobre .etincelles { display: none; }
 @media (prefers-reduced-motion: reduce) { .booster-holo, .booster-flash, .etincelles i { animation: none; } .etincelles, .booster-flash { display: none; } }
+.petit-texte-bouton { font-size: 15px; }
+.pdf-une-page { min-height: 100%; justify-content: center; max-width: min(900px, calc((100vh - 170px) * .72)); }
+.pdf-tourner { display: flex; justify-content: center; gap: 24px; padding: 6px 0 40px; }
+
+/* Boosters : découpe au doigt, nouveau visuel */
+.booster { touch-action: none; }
+.booster.secoue { animation: secoue .35s; }
+.booster.en-coupe { animation-play-state: paused; }
+.booster-ligne { position: absolute; left: 6%; right: 6%; bottom: 10px; height: 2px; background: repeating-linear-gradient(90deg, rgba(255,255,255,.75) 0 8px, transparent 8px 14px); }
+.booster-ligne::after { content: ""; position: absolute; left: 0; top: -2px; height: 6px; width: calc(var(--coupe, 0) * 100%); border-radius: 3px; background: #fff; box-shadow: 0 0 12px #fff, 0 0 24px var(--lum); }
+.booster-haut { transform: translateY(calc(var(--coupe, 0) * -6px)) rotate(calc(var(--coupe, 0) * -4deg)); }
+.boosters.ouvert .booster-haut { transition: transform .7s cubic-bezier(.2,.9,.3,1.2), opacity .7s; transform: translate(90px, -240px) rotate(42deg); opacity: 0; }
+.booster-embleme { display: none; }
+.booster-logo b { color: #FFD166; }
+.booster-logo { font-size: 11px; letter-spacing: .12em; }
+.booster-medaillon { position: relative; width: 70px; height: 70px; border-radius: 22px; display: grid; place-items: center; color: #fff; background: linear-gradient(145deg, rgba(255,255,255,.45), rgba(255,255,255,.08)); box-shadow: 0 8px 22px rgba(0,0,0,.3), inset 0 0 0 1.5px rgba(255,255,255,.5); transform: rotate(-6deg); }
+.booster-cours { font-size: 21px; font-weight: 800; letter-spacing: -0.01em; color: #fff; line-height: 1.15; }
+.booster-titre { font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; padding: 4px 10px; border-radius: 999px; background: rgba(0,0,0,.22); }
+.booster-epreuve { position: relative; font-size: 13px; font-weight: 600; color: rgba(255,255,255,.8); }
+.formulaire-court label { min-width: 0; }
+.formulaire-court input[type=datetime-local] { display: block; min-width: 0; max-width: 100%; -webkit-appearance: none; appearance: none; text-align: left; line-height: 46px; }
+.formulaire-court input[type=datetime-local]::-webkit-date-and-time-value { text-align: left; }
+.choix-fichier { display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 6px 6px 6px 12px; border-radius: 12px; border: 1.5px dashed var(--trait); background: var(--fond); text-transform: none; letter-spacing: 0; font-size: 15px; font-weight: 500; color: var(--moyen); cursor: pointer; }
+.choix-fichier input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.choix-fichier span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.choix-fichier strong { flex: none; padding: 8px 12px; border-radius: 10px; background: var(--bleu-pale); color: var(--lien); font-weight: 700; }
+.champ-fichier { display: flex; flex-direction: column; gap: 6px; }
+.etiquette-champ { font-size: 13px; font-weight: 700; color: var(--doux); text-transform: uppercase; letter-spacing: .03em; }
+.formulaire-court .choix-fichier { flex-direction: row; text-transform: none; letter-spacing: 0; font-size: 15px; font-weight: 500; color: var(--moyen); }
+.bloc-emoji { position: absolute; right: 4px; bottom: 3px; font-size: 15px; line-height: 1; }

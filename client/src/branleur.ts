@@ -28,11 +28,28 @@ const PHRASES = [
   'Personne ne fait l’appel en amphi… en théorie 👀',
   'Un café, un résumé d’un pote, et c’est réglé ☕',
   'Ton lit t’appelle, et il est très convaincant 🛏️',
+  'Le prof parle à 200 personnes, il ne verra rien 🕶️',
+  'Grand amphi, petite conscience 🫣',
+  'Ce cours existe aussi en PDF, version 0 effort 📚',
+  'Va prendre un vrai petit-déj’ 🥐',
+  'Ton futur toi relira les slides, promis 🤞',
+  'Mode économie d’énergie activé 🔋',
 ];
+
+/** Pour les examens, en mode branleur : pas d'excuse, juste du soutien moral. */
+const EXAMENS = ['😵‍💫 Pas d’échappatoire, courage', '🧠 Réveille tes neurones', '☕ Double café recommandé', '🫠 Respire, ça va bien se passer', '🍀 Croise les doigts (et révise)'];
+
+export function soutienExamen(e: Evenement): string | null {
+  return e.categorie === 'examen' ? EXAMENS[hache(e.cle) % EXAMENS.length] : null;
+}
+
+/** Planning de l'élève, retenu pour que chaque ligne du planning trouve sa propre excuse. */
+let planningRetenu: Evenement[] = [];
+export const retenirPlanning = (p: Evenement[]) => { planningRetenu = p; };
 
 const hache = (s: string) => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
 
-export function verdict(e: Evenement, planning: Evenement[]): Verdict | null {
+export function verdict(e: Evenement, planning: Evenement[] = planningRetenu): Verdict | null {
   if (!sechable(e)) return null;
   const jour = planning.filter((x) => jourDe(x.debut) === jourDe(e.debut)).sort((a, b) => a.debut.localeCompare(b.debut));
   const obligatoires = jour.filter((x) => !sechable(x));

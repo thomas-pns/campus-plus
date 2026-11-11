@@ -13,6 +13,9 @@ import { appliquerTheme, suivreSysteme } from './theme';
 if ((navigator as { standalone?: boolean }).standalone || matchMedia('(display-mode: standalone)').matches) {
   document.documentElement.classList.add('standalone');
 }
+// Comme une appli : pas de zoom de toute la page (pincement ou double appui) ; le lecteur PDF a son propre zoom.
+document.addEventListener('gesturestart', (e) => e.preventDefault());
+document.addEventListener('dblclick', (e) => { if (!(e.target as Element).closest?.('input, textarea')) e.preventDefault(); }, { passive: false });
 appliquerTheme();
 suivreSysteme();
 registerSW({ immediate: true });

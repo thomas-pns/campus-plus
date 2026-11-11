@@ -213,7 +213,7 @@ function FicheFichier({ f, surOuvrir, surFermer }: { f: Fichier; surOuvrir: () =
         </div>
         <p class="petit-texte">
           {etat === 'erreur' ? 'Le fichier n’a pas pu être préparé : réessaie dans un instant.'
-            : ios && partageable ? 'Choisis « Enregistrer dans Fichiers » pour le garder sur ton iPhone ou iPad, ou AirDrop, ou une appli de notes. Pour la reMarkable : enregistre-le dans Fichiers, puis partage-le depuis Fichiers vers l’appli reMarkable.'
+            : ios && partageable ? 'Choisis « Enregistrer dans Fichiers » pour le garder sur ton iPhone ou iPad, ou AirDrop, ou une appli de notes. Pour la reMarkable : Partager → Imprimer, puis dans l’aperçu d’impression Partager → reMarkable (pas besoin d’enregistrer le fichier).'
             : partageable ? '« Partager » ouvre le menu de l’appareil : AirDrop, Fichiers, applis de notes…'
             : '« Enregistrer » le met dans tes téléchargements.'}
         </p>

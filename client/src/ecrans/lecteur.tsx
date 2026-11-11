@@ -77,7 +77,9 @@ const borner = (z: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(z
  * agrandies à l'image (rapide) ; au lâcher, elles sont redessinées nettes à la bonne taille et le point
  * entre les doigts reste en place.
  */
-function usePincement(ref: { current: HTMLDivElement | null }, actif: boolean, zoom: number, setZoom: (z: number) => void) {
+function usePincement(ref: { current: HTMLDivElement | null }, actif: boolean, zoom: number, setZoom: (z: number) => void, surGlisser?: (sens: 1 | -1) => void) {
+  const glisser = useRef(surGlisser);
+  glisser.current = surGlisser;
   const zoomRef = useRef(zoom);
   zoomRef.current = zoom;
   const ancre = useRef<{ x: number; y: number; z: number } | null>(null);
@@ -89,8 +91,12 @@ function usePincement(ref: { current: HTMLDivElement | null }, actif: boolean, z
     let echelle = 1;
     const pages = () => el.querySelector<HTMLElement>('.pdf-pages');
     const distance = (t: TouchList) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    let unDoigt: { x: number; y: number; t: number } | null = null;
+    let dernierAppui = 0;
     const debut = (ev: TouchEvent) => {
+      if (ev.touches.length === 1) unDoigt = { x: ev.touches[0].clientX, y: ev.touches[0].clientY, t: Date.now() };
       if (ev.touches.length !== 2) return;
+      unDoigt = null;
       const r = el.getBoundingClientRect();
       depart = { d: distance(ev.touches), x: (ev.touches[0].clientX + ev.touches[1].clientX) / 2 - r.left, y: (ev.touches[0].clientY + ev.touches[1].clientY) / 2 - r.top };
       echelle = 1;
@@ -105,8 +111,22 @@ function usePincement(ref: { current: HTMLDivElement | null }, actif: boolean, z
         p.style.transform = `scale(${echelle})`;
       }
     };
-    const fin = () => {
-      if (!depart) return;
+    const fin = (ev?: TouchEvent) => {
+      if (!depart) {
+        // Un doigt : double appui pour zoomer ×2 (ou revenir), glissement horizontal pour tourner la page.
+        const t = ev?.changedTouches?.[0];
+        if (unDoigt && t) {
+          const dx = t.clientX - unDoigt.x, dy = t.clientY - unDoigt.y;
+          if (Math.abs(dx) < 10 && Math.abs(dy) < 10 && Date.now() - unDoigt.t < 250) {
+            if (Date.now() - dernierAppui < 320) { setZoom(zoomRef.current > 1 ? 1 : 2); dernierAppui = 0; }
+            else dernierAppui = Date.now();
+          } else if (glisser.current && zoomRef.current === 1 && Math.abs(dx) > 60 && Math.abs(dx) > 2 * Math.abs(dy)) {
+            glisser.current(dx < 0 ? 1 : -1);
+          }
+        }
+        unDoigt = null;
+        return;
+      }
       const p = pages();
       if (p) { p.style.transform = ''; p.style.transformOrigin = ''; }
       const nouveau = borner(zoomRef.current * echelle);
@@ -151,6 +171,16 @@ const estImage = (f: Fichier) => /^image\/(png|jpe?g|gif|webp)$/.test(f.type) ||
 export function Lecteur({ f, surFermer }: { f: FichierLu; surFermer: () => void }) {
   const { partager, etat } = usePartage(f);
   const [zoom, setZoom] = useState(1);
+  // « Défiler » : toutes les pages à la suite ; « Page » : une page à la fois, on glisse pour tourner.
+  const [parPage, setParPage] = useState(() => { try { return localStorage.getItem('campus-plus:lecteur') === 'page'; } catch { return false; } });
+  const [pageCourante, setPageCourante] = useState(0);
+  const changerMode = () => {
+    const v = !parPage;
+    setParPage(v);
+    setZoom(1);
+    if (page) setPageCourante(page.n - 1);
+    try { localStorage.setItem('campus-plus:lecteur', v ? 'page' : 'defiler'); } catch { /* rien */ }
+  };
   useEffect(() => {
     const touche = (ev: KeyboardEvent) => ev.key === 'Escape' && surFermer();
     document.addEventListener('keydown', touche);
@@ -160,13 +190,18 @@ export function Lecteur({ f, surFermer }: { f: FichierLu; surFermer: () => void 
   const pdf = estPdf(f);
   const corps = useRef<HTMLDivElement>(null);
   const [page, setPage] = useState<{ n: number; total: number } | null>(null);
-  usePincement(corps, pdf, zoom, setZoom);
+  usePincement(corps, pdf, zoom, setZoom, parPage ? (sens) => setPageCourante((n) => Math.max(0, Math.min((page?.total ?? 1) - 1, n + sens))) : undefined);
 
   return createPortal(
     <div class="lecteur" role="dialog" aria-modal="true" aria-label={f.nom}>
       <header class="lecteur-haut">
         <button type="button" class="lecteur-bouton" onClick={surFermer}><Icone nom="gauche" taille={20} epaisseur={2.4} />Fermer</button>
         <span class="lecteur-titre">{f.nom}</span>
+        {pdf && (
+          <button type="button" class="lecteur-bouton petit-texte-bouton" onClick={changerMode} aria-label={parPage ? 'Afficher toutes les pages à la suite' : 'Afficher page par page'}>
+            {parPage ? 'Défiler' : 'Pages'}
+          </button>
+        )}
         {pdf && (
           <span class="lecteur-zoom">
             <button type="button" class="lecteur-bouton" aria-label="Dézoomer" disabled={zoom <= ZOOM_MIN} onClick={() => setZoom(borner(zoom / 1.5))}>−</button>
@@ -184,7 +219,7 @@ export function Lecteur({ f, surFermer }: { f: FichierLu; surFermer: () => void 
         )}
       </header>
       <div class="lecteur-corps" ref={corps}>
-        {pdf ? <Pdf f={f} zoom={zoom} surPage={setPage} /> : estImage(f) ? (
+        {pdf ? <Pdf f={f} zoom={zoom} surPage={setPage} parPage={parPage} pageCourante={pageCourante} surTourner={setPageCourante} /> : estImage(f) ? (
           <img class="lecteur-image" src={adresseFichier(f)} alt={f.nom} />
         ) : (
           <div class="lecteur-autre">
@@ -215,7 +250,7 @@ type PagePdf = {
 };
 
 /** PDF page par page : chaque page n'est dessinée que lorsqu'elle approche de l'écran. */
-function Pdf({ f, zoom, surPage }: { f: FichierLu; zoom: number; surPage: (p: { n: number; total: number }) => void }) {
+function Pdf({ f, zoom, surPage, parPage, pageCourante, surTourner }: { f: FichierLu; zoom: number; surPage: (p: { n: number; total: number }) => void; parPage: boolean; pageCourante: number; surTourner: (n: number) => void }) {
   const [doc, setDoc] = useState<DocPdf | null>(null);
   const [formats, setFormats] = useState<number[]>([]);
   const [erreur, setErreur] = useState(false);
@@ -245,6 +280,18 @@ function Pdf({ f, zoom, surPage }: { f: FichierLu; zoom: number; surPage: (p: { 
   if (erreur) return <p class="lecteur-message">Ce PDF n’a pas pu être affiché. Utilise le bouton de partage pour l’ouvrir dans une autre appli.</p>;
   if (!doc) return <div class="lecteur-message"><div class="progression"><span class="indetermine" /></div><p>Ouverture du PDF…</p></div>;
   return (
+    parPage ? (
+      <div class="pdf-pages pdf-une-page" style={{ width: `${zoom * 100}%` }}>
+        {(() => {
+          const i = Math.min(pageCourante, formats.length - 1);
+          return <PagePdfVue key={i} doc={doc} n={i + 1} ratio={formats[i]} zoom={zoom} surVue={() => surPage({ n: i + 1, total: formats.length })} />;
+        })()}
+        <div class="pdf-tourner">
+          <button type="button" class="rond" aria-label="Page précédente" disabled={pageCourante <= 0} onClick={() => surTourner(pageCourante - 1)}><Icone nom="gauche" taille={20} epaisseur={2.4} /></button>
+          <button type="button" class="rond" aria-label="Page suivante" disabled={pageCourante >= formats.length - 1} onClick={() => surTourner(pageCourante + 1)}><Icone nom="droite" taille={20} epaisseur={2.4} /></button>
+        </div>
+      </div>
+    ) :
     <div class="pdf-pages" style={{ width: `${zoom * 100}%` }}>
       {formats.map((r, i) => <PagePdfVue doc={doc} n={i + 1} ratio={r} zoom={zoom} surVue={() => surPage({ n: i + 1, total: formats.length })} />)}
     </div>

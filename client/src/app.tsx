@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'preact/hooks';
 import type { Donnees, Evenement } from './types';
 import * as api from './api';
 import { synchroniserPreferences } from './preferences';
+import { retenirPlanning } from './branleur';
 import { Defilement, FicheEvenement, Icone, type NomIcone } from './composants';
 import { Aujourdhui } from './ecrans/aujourdhui';
 import { Planning } from './ecrans/planning';
@@ -74,6 +75,7 @@ export function App() {
     try {
       const [d] = await Promise.all([api.chargerTout(), synchroniserPreferences()]);
       api.ecrireCopie(d);
+      retenirPlanning(d.planning);
       setDonnees(d);
       setHorsLigne(false);
       setPhase('appli');
@@ -204,6 +206,7 @@ export function App() {
   if (phase === 'connexion' || !donnees) return <Connexion surReussite={recharger} />;
 
   const d = donnees;
+  retenirPlanning(d.planning);
   const nouvelles = d.alertes.filter((a) => a.date > vuesJusqua).length;
 
   return (

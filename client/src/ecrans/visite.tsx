@@ -4,13 +4,8 @@
  */
 import { useEffect, useLayoutEffect, useState } from 'preact/hooks';
 import { Icone } from '../composants';
-import { Boosters } from './boosters';
-import type { Note } from '../types';
+import { Boosters, EXEMPLES } from './boosters';
 
-const EXEMPLES: Note[] = [
-  { semestre: 'Exemple', module: 'Maths', cours: 'Algèbre linéaire', epreuve: 'Écrit 1', coefficient: 1, note: 16.5, motifAbsence: '' },
-  { semestre: 'Exemple', module: 'Info', cours: 'Développement logiciel', epreuve: 'Projet', coefficient: 2, note: 13, motifAbsence: '' },
-];
 
 const CLE = 'campus-plus:visite-vue';
 
@@ -25,7 +20,7 @@ function marquerVue(): void {
 export type OngletVisite = 'aujourdhui' | 'planning' | 'cours' | 'alertes' | 'scolarite';
 
 interface Etape {
-  onglet: OngletVisite;
+  onglet: OngletVisite | null;
   /** Élément montré ; s'il n'existe pas (planning vide…), on passe au repli, puis à la bulle seule. */
   cible: string[];
   titre: string;
@@ -34,7 +29,18 @@ interface Etape {
   exemple?: 'booster';
 }
 
-const ETAPES: Etape[] = [
+const installee = () => (navigator as Navigator & { standalone?: boolean }).standalone === true || matchMedia('(display-mode: standalone)').matches;
+const surIPhone = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+/** Proposée seulement dans le navigateur : installer l'appli sur l'écran d'accueil. */
+const INSTALLER: Etape = {
+  onglet: null, cible: [], titre: 'Installe Campus+',
+  texte: surIPhone()
+    ? 'Dans Safari, touche Partager (le carré avec une flèche), puis « Sur l’écran d’accueil ». Ouvre ensuite Campus+ depuis son icône : plein écran, et les notifications marchent.'
+    : 'Dans le menu du navigateur (⋮), choisis « Installer l’application » ou « Ajouter à l’écran d’accueil ». Campus+ s’ouvrira comme une vraie appli.',
+};
+
+const ETAPES_BASE: Etape[] = [
   { onglet: 'aujourdhui', cible: ['.une'], titre: 'Ton prochain cours', texte: 'En grand, avec sa salle (même quand elle dépend de ton nom). Touche-le pour le détail ou pour y ajouter un devoir.' },
   { onglet: 'aujourdhui', cible: ['[aria-label="Examens à venir"]', '[aria-label="À faire"]'], titre: 'Examens et devoirs', texte: 'Les partiels dès qu’ils sont publiés sur MyCPE, puis tes devoirs e-campus et tes tâches. Coche quand c’est fait.' },
   { onglet: 'aujourdhui', cible: ['.tuiles'], titre: 'Tes widgets', texte: 'Notes, nouveaux fichiers ou alertes, au choix dans les réglages. Avec « Notes en boosters », chaque nouvelle note s’ouvre comme un paquet de cartes.', exemple: 'booster' },
@@ -53,7 +59,7 @@ function useCible(etape: Etape | null, cle: number): Cadre | null {
   const [cadre, setCadre] = useState<Cadre | null>(null);
   useLayoutEffect(() => {
     setCadre(null);
-    if (!etape) return;
+    if (!etape || !etape.cible.length) return;
     let element: Element | null = null;
     let fini = false;
     const mesurer = () => {
@@ -86,13 +92,14 @@ function useCible(etape: Etape | null, cle: number): Cadre | null {
 
 export function Visite({ surFin, surAller }: { surFin: () => void; surAller: (o: OngletVisite) => void }) {
   // -1 : mot de bienvenue ; ensuite, index de l'étape.
+  const [ETAPES] = useState(() => (installee() ? ETAPES_BASE : [INSTALLER, ...ETAPES_BASE]));
   const [i, setI] = useState(-1);
   const [exemple, setExemple] = useState(false);
   const etape = i >= 0 ? ETAPES[i] : null;
   const cadre = useCible(etape, i);
   const finir = () => { marquerVue(); surAller('aujourdhui'); surFin(); };
 
-  useEffect(() => { if (etape) surAller(etape.onglet); }, [i]);
+  useEffect(() => { if (etape?.onglet) surAller(etape.onglet); }, [i]);
   useEffect(() => {
     const touche = (ev: KeyboardEvent) => { if (ev.key === 'Escape') finir(); };
     window.addEventListener('keydown', touche);

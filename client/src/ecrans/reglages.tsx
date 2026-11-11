@@ -7,6 +7,7 @@ import { choisirTheme, lireTheme, type Theme } from '../theme';
 import { Interrupteur, ReglagesNotifications } from './notifications';
 import { changerPreferences, lirePreferences, type Preferences, type Tuile } from '../preferences';
 import { ReglagesOneDrive } from './onedrive';
+import { Boosters, EXEMPLES } from './boosters';
 
 interface Props {
   d: Donnees;
@@ -55,6 +56,7 @@ export function Reglages({ d, maintenant, horsLigne, surRetour, surActualiser, s
   const [confirmer, setConfirmer] = useState(false);
   const [theme, setTheme] = useState<Theme>(lireTheme);
   const [choixTheme, setChoixTheme] = useState(false);
+  const [essai, setEssai] = useState(false);
   const [choixTuile, setChoixTuile] = useState<'tuileGauche' | 'tuileDroite' | null>(null);
   const [prefs, setPrefs] = useState(lirePreferences);
   const lancer = (quoi: typeof occupe, action: () => Promise<void>) => {
@@ -83,6 +85,7 @@ export function Reglages({ d, maintenant, horsLigne, surRetour, surActualiser, s
     <>
       <button type="button" class="retour" onClick={surRetour}><Icone nom="gauche" epaisseur={2.4} />Retour</button>
       <h1 class="titre-page">Réglages</h1>
+      {essai && <Boosters demo notes={EXEMPLES} surFin={() => setEssai(false)} />}
 
       <div class="carte profil">
         <span class="avatar grand" aria-hidden="true"><Avatar initiales={initialesDe(d.moi.nom)} photo={prefs.photo} grand /></span>
@@ -150,6 +153,7 @@ export function Reglages({ d, maintenant, horsLigne, surRetour, surActualiser, s
           {(prefs.tuileGauche === 'note' || prefs.tuileDroite === 'note') && (
             <Ligne icone="note" couleur="orange" libelle="Notes en boosters">{pref('cacherNote', 'Notes en boosters')}</Ligne>
           )}
+          <Ligne icone="plus" couleur="violet" libelle="Essayer les boosters" chevron surClic={() => setEssai(true)} />
         </div>
         <p class="petit-texte">{prefs.cacherNote && (prefs.tuileGauche === 'note' || prefs.tuileDroite === 'note') ? 'Le widget ne montre pas ta note : chaque nouvelle note s’ouvre comme un booster.' : 'Choisis ce que l’accueil montre. Ces choix te suivent sur tous tes appareils.'}</p>
       </section>

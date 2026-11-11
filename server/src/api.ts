@@ -339,15 +339,38 @@ export async function creerApp(s: Services): Promise<FastifyInstance> {
   // Une démarche à la fois par élève, et pas plus d'une toutes les 20 secondes : MyCPE est lent.
   const demarches = new Map<string, number>();
   const certificats = new Map<string, { pdf: Buffer; t: number }>();
+  // Session MyCPE gardée quelques minutes : se reconnecter à chaque démarche fait parfois répondre
+  // une erreur 500 à MyCPE. En cas d'échec, une nouvelle connexion est tentée une fois.
+  const sessions = new Map<string, { client: AurionClient; t: number }>();
+  const clientMyCpe = async (id: string, neuf = false): Promise<AurionClient> => {
+    const garde = sessions.get(id);
+    if (!neuf && garde && maintenant() - garde.t < 4 * 60_000) return garde.client;
+    const compte = await s.comptes.lire(id);
+    if (!compte) throw Object.assign(new Error('Compte introuvable'), { statusCode: 401 });
+    const client = s.fabriqueAurion();
+    try {
+      await client.connexion(compte.identifiant, compte.motDePasse);
+    } catch (e) {
+      if (e instanceof ErreurIdentifiants || !(e instanceof ErreurAurion)) throw e;
+      await new Promise((r) => setTimeout(r, 1500));
+      await client.connexion(compte.identifiant, compte.motDePasse);
+    }
+    sessions.set(id, { client, t: maintenant() });
+    return client;
+  };
+  const sansLimite = async <T>(id: string, action: (client: AurionClient) => Promise<T>): Promise<T> => {
+    try {
+      return await action(await clientMyCpe(id));
+    } catch (e) {
+      if (!(e instanceof ErreurAurion) || e instanceof ErreurIdentifiants) throw e;
+      return action(await clientMyCpe(id, true));
+    }
+  };
   const avecMyCpe = async <T>(id: string, action: (client: AurionClient) => Promise<T>): Promise<T> => {
     const derniere = demarches.get(id) ?? 0;
     if (maintenant() - derniere < 20_000) throw Object.assign(new Error('Patiente quelques secondes avant de recommencer'), { statusCode: 429 });
     demarches.set(id, maintenant());
-    const compte = await s.comptes.lire(id);
-    if (!compte) throw Object.assign(new Error('Compte introuvable'), { statusCode: 401 });
-    const client = s.fabriqueAurion();
-    await client.connexion(compte.identifiant, compte.motDePasse);
-    return action(client);
+    return sansLimite(id, action);
   };
   const erreurMyCpe = (e: unknown, rep: FastifyReply) => {
     const code = (e as { statusCode?: number }).statusCode;
@@ -373,15 +396,14 @@ export async function creerApp(s: Services): Promise<FastifyInstance> {
     }
   });
 
-  app.get('/api/justificatif/motifs', { onRequest: exigerSession }, async (req, rep) => {
+  // Motifs proposés par MyCPE (relevés le 11/11/2026), si MyCPE ne répond pas.
+  const MOTIFS_CONNUS = ['Absence pour autre motif', 'Absence pour convocation administrative', 'Absence pour évènement familial', 'Absence pour maladie', 'Absence pour permis de conduire'];
+  app.get('/api/justificatif/motifs', { onRequest: exigerSession }, async (req) => {
     try {
-      const compte = await s.comptes.lire(req.compte!.id);
-      if (!compte) return rep.code(401).send({ erreur: 'Compte introuvable' });
-      const client = s.fabriqueAurion();
-      await client.connexion(compte.identifiant, compte.motDePasse);
-      return { motifs: await client.motifsAbsence() };
-    } catch (e) {
-      return erreurMyCpe(e, rep);
+      const motifs = await sansLimite(req.compte!.id, (c) => c.motifsAbsence());
+      return { motifs: motifs.length ? motifs : MOTIFS_CONNUS };
+    } catch {
+      return { motifs: MOTIFS_CONNUS };
     }
   });
 

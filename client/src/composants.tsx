@@ -5,7 +5,7 @@ import type { Evenement } from './types';
 import { heureDe, jourEnToutesLettres, jourDe, jourParis, libelleJour } from './dates';
 import { CATEGORIES, salleDe, salleDeduite, titreDe } from './planning';
 import { lirePreferences } from './preferences';
-import { sechable, verdict } from './branleur';
+import { soutienExamen, verdict } from './branleur';
 
 /* ---------- Icônes (traits simples, dessinées pour l'appli) ---------- */
 
@@ -87,7 +87,8 @@ export function Segments<T extends string>({ options, valeur, surChoix, etiquett
 
 export function LigneEvenement({ e, passe, surOuvrir }: { e: Evenement; passe?: boolean; surOuvrir: (e: Evenement) => void }) {
   const cat = CATEGORIES[e.categorie];
-  const facultatif = lirePreferences().branleur && sechable(e);
+  const branleur = lirePreferences().branleur;
+  const excuse = branleur ? (verdict(e)?.message ?? soutienExamen(e)) : null;
   const sousTitre = [e.intervenants.join(', '), e.groupe].filter(Boolean).join(' · ');
   return (
     <button type="button" class={`ligne-evt ${passe ? 'passe' : ''}`} onClick={() => surOuvrir(e)}>
@@ -102,7 +103,7 @@ export function LigneEvenement({ e, passe, surOuvrir }: { e: Evenement; passe?: 
         </span>
         <span class="ligne-titre">{titreDe(e)}</span>
         {sousTitre && <span class="ligne-sous">{sousTitre}</span>}
-        {facultatif && <span class="ligne-facultatif">😴 Facultatif</span>}
+        {excuse && <span class="ligne-facultatif">{excuse}</span>}
       </span>
     </button>
   );
