@@ -16,4 +16,6 @@ services:
       # Facultatif : fournir la clé de chiffrement ici (openssl rand -base64 32) au lieu de la laisser
       # se créer dans data/cle-secrete. Ne plus la changer ensuite.
       # CAMPUS_SECRET_KEY: ""
+      # Facultatif : option « Copier mes cours sur OneDrive » (voir docs/onedrive.md)
+      # ONEDRIVE_CLIENT_ID: ""
     mem_limit: 256m

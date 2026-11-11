@@ -197,6 +197,15 @@ export class SynchroCours {
     return ignores;
   }
 
+  /** Copie du serveur d'un fichier (null s'il n'a pas été copié, par exemple trop gros). */
+  async octetsEnCache(cle: string): Promise<Buffer | null> {
+    try {
+      return this.coffre.dechiffrerOctets(await readFile(this.cheminFichier(cle)));
+    } catch {
+      return null;
+    }
+  }
+
   /** Le fichier demandé, seulement s'il fait partie des cours de cet élève. */
   async fichier(id: string, cle: string): Promise<{ fichier: Fichier; octets: Buffer } | { fichier: Fichier; flux: Response } | null> {
     if (!CLE_VALIDE.test(cle)) return null;

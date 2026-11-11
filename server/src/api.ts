@@ -16,6 +16,7 @@ import type { Synchro } from './synchro.js';
 import type { SynchroCours } from './cours.js';
 import type { Taches } from './taches.js';
 import type { SynchroMails } from './mails.js';
+import { ErreurOneDrive, type SynchroOneDrive } from './onedrive.js';
 import { abonnementValide, TYPES_PAR_DEFAUT, type Notifications } from './notifications.js';
 
 const COOKIE = 'cp_session';
@@ -33,6 +34,8 @@ export interface Services {
   cours?: SynchroCours;
   taches?: Taches;
   mails?: SynchroMails;
+  /** Absent si ONEDRIVE_CLIENT_ID n'est pas réglé : l'option est alors cachée. */
+  onedrive?: SynchroOneDrive;
   fabriqueAurion: () => AurionClient;
   cookieSecurise: boolean;
   /** Vrai derrière un proxy inversé (cas du NAS) : l'adresse du visiteur est lue dans X-Forwarded-For. */
@@ -330,6 +333,36 @@ export async function creerApp(s: Services): Promise<FastifyInstance> {
     });
   }
 
+  /* ---------- OneDrive ---------- */
+
+  const onedrive = s.onedrive;
+  app.get('/api/onedrive', { onRequest: exigerSession }, async (req) => (
+    onedrive ? { disponible: true, etat: await onedrive.etat(req.compte!.id) } : { disponible: false, etat: null }
+  ));
+  if (onedrive) {
+    app.post('/api/onedrive/connexion', { onRequest: exigerSession }, async (req, rep) => {
+      try {
+        return { connexion: await onedrive.demarrerConnexion(req.compte!.id) };
+      } catch (e) {
+        if (e instanceof ErreurOneDrive) return rep.code(502).send({ erreur: e.message });
+        throw e;
+      }
+    });
+    app.delete('/api/onedrive/connexion', { onRequest: exigerSession }, async (req) => {
+      onedrive.annulerConnexion(req.compte!.id);
+      return { etat: await onedrive.etat(req.compte!.id) };
+    });
+    app.post('/api/onedrive/copie', { onRequest: exigerSession }, async (req) => {
+      const id = req.compte!.id;
+      void onedrive.synchroniser(id).catch(() => undefined);
+      return { etat: await onedrive.etat(id) };
+    });
+    app.delete('/api/onedrive', { onRequest: exigerSession }, async (req) => {
+      await onedrive.deconnecter(req.compte!.id);
+      return { etat: await onedrive.etat(req.compte!.id) };
+    });
+  }
+
   /* ---------- Notifications ---------- */
 
   const n = s.notifications;
@@ -371,6 +404,7 @@ export async function creerApp(s: Services): Promise<FastifyInstance> {
 
   /** Efface le compte et toutes ses données du serveur. */
   app.delete('/api/compte', { onRequest: exigerSession }, async (req, rep) => {
+    s.onedrive?.annulerConnexion(req.compte!.id);
     await s.comptes.supprimer(req.compte!.id);
     rep.clearCookie(COOKIE, optionsCookie);
     return { ok: true };

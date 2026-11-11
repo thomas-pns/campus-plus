@@ -22,6 +22,8 @@ import { FauxPartage, mailsFaux } from './faux-partage.js';
 import { SynchroCours } from '../src/cours.js';
 import { MoodleClient } from '../src/sources/moodle.js';
 import { coursFaux, FauxMoodle } from './faux-moodle.js';
+import { FauxMicrosoft } from './faux-microsoft.js';
+import { SynchroOneDrive } from '../src/onedrive.js';
 
 const jourPlus = (lundi: Date, n: number) => {
   const d = new Date(lundi.getTime() + n * 86_400_000);
@@ -122,8 +124,14 @@ const notifications = await Notifications.demarrer(depot, coffre, await mkdtemp(
 const dossierDemo = await mkdtemp(join(tmpdir(), 'campus-demo-fichiers-'));
 const cours = new SynchroCours(depot, comptes, coffre, dossierDemo, () => new MoodleClient(adressesMoodle), { surNouvellesAlertes: (id, a) => notifications.alertes(id, a) });
 const mails = new SynchroMails(depot, comptes, () => new PartageClient(basePartage), { base: basePartage, surNouvellesAlertes: (id, a) => notifications.alertes(id, a) });
-const synchro = new Synchro(depot, comptes, fabriqueAurion, { minutes: 15, cours, mails, surNouvellesAlertes: (id, a) => notifications.alertes(id, a) });
-const app = await creerApp({ depot, comptes, synchro, notifications, cours, taches: new Taches(depot), mails, fabriqueAurion, cookieSecurise: false, dossierClient: process.env.CLIENT_DIR ?? '../client/dist' });
+// Faux Microsoft : la saisie du code est simulée 8 secondes après la demande.
+const microsoft = new FauxMicrosoft();
+const baseMicrosoft = await microsoft.demarrer();
+const onedrive = new SynchroOneDrive(depot, cours, { clientId: 'demo', baseConnexion: baseMicrosoft, baseGraph: `${baseMicrosoft}/v1.0` });
+const demarrerConnexion = onedrive.demarrerConnexion.bind(onedrive);
+onedrive.demarrerConnexion = async (id) => { microsoft.valide = false; setTimeout(() => (microsoft.valide = true), 8000); return demarrerConnexion(id); };
+const synchro = new Synchro(depot, comptes, fabriqueAurion, { minutes: 15, cours, mails, onedrive, surNouvellesAlertes: (id, a) => notifications.alertes(id, a) });
+const app = await creerApp({ depot, comptes, synchro, notifications, cours, taches: new Taches(depot), mails, onedrive, fabriqueAurion, cookieSecurise: false, dossierClient: process.env.CLIENT_DIR ?? '../client/dist' });
 const port = Number(process.env.PORT ?? 8787);
 await app.listen({ port, host: '127.0.0.1' });
 console.log(`Démo : http://localhost:${port}  (identifiant « demo », mot de passe « demo »)`);

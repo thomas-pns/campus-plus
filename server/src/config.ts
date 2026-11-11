@@ -18,6 +18,10 @@ export interface Config {
   derriereProxy: boolean;
   /** Dossier de l'appli web compilée (client/dist), servi par le serveur s'il est indiqué. */
   dossierClient: string | null;
+  /** Identifiant de l'application Microsoft (option OneDrive) ; absent : option cachée. */
+  onedriveClientId: string | null;
+  /** Annuaire Microsoft : « common » (écoles et comptes perso), « organizations » ou l'id d'une école. */
+  onedriveTenant: string;
 }
 
 export function lireCle(valeur: string | undefined): Buffer {
@@ -60,5 +64,7 @@ export async function lireConfig(env: NodeJS.ProcessEnv = process.env): Promise<
     cookieSecurise: env.COOKIE_SECURE !== 'false',
     derriereProxy: env.TRUST_PROXY !== 'false',
     dossierClient: env.CLIENT_DIR || null,
+    onedriveClientId: env.ONEDRIVE_CLIENT_ID?.trim() || null,
+    onedriveTenant: env.ONEDRIVE_TENANT?.trim() || 'common',
   };
 }

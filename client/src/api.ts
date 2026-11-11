@@ -213,3 +213,23 @@ export const activerMails = (actif: boolean) => appel<{ etat: EtatMails; mails: 
 
 export const corrigerExpediteur = (adresse: string, categorie: Mail['categorie'] | null) =>
   appel<{ etat: EtatMails; mails: Mail[] }>('PUT', '/api/mails/expediteur', { adresse, categorie });
+
+/* ---------- OneDrive ---------- */
+
+export interface ConnexionOneDrive { code: string; adresse: string; expire: number }
+export interface EtatOneDrive {
+  actif: boolean;
+  compte: string | null;
+  derniereSynchro: string | null;
+  erreur: string | null;
+  copies: number;
+  restants: number;
+  connexion: ConnexionOneDrive | null;
+}
+
+export const lireOneDrive = () =>
+  appel<{ disponible: boolean; etat: EtatOneDrive | null }>('GET', '/api/onedrive').catch((e) => siAbsent(e) ?? { disponible: false, etat: null });
+export const connecterOneDrive = () => appel<{ connexion: ConnexionOneDrive }>('POST', '/api/onedrive/connexion');
+export const annulerOneDrive = () => appel<{ etat: EtatOneDrive }>('DELETE', '/api/onedrive/connexion');
+export const copierOneDrive = () => appel<{ etat: EtatOneDrive }>('POST', '/api/onedrive/copie');
+export const deconnecterOneDrive = () => appel<{ etat: EtatOneDrive }>('DELETE', '/api/onedrive');

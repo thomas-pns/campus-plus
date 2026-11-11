@@ -19,11 +19,13 @@ Une appli web (PWA) open source pour les élèves de **CPE Lyon** : ton planning
 🚧 Première version utilisable. Voir le [cahier des charges](docs/cahier-des-charges.md), les [sources de données](docs/sources-cpe.md) et le [guide d'installation sur un NAS](DEPLOIEMENT.md).
 
 - `server/` (Node ≥ 20) : connexion à MyCPE et à e-campus avec le compte de chaque élève, planning, notes, absences, cours et fichiers, synchro automatique, alertes, notifications, API JSON. Testé contre un faux MyCPE.
-- `client/` : l'appli (PWA Preact) avec les écrans Aujourd'hui, Planning (jour et semaine), Alertes, Scolarité et Réglages. Consultable hors ligne, « tirer pour actualiser », notifications sur le téléphone (changement de salle, nouvelle note…).
+- `client/` : l'appli (PWA Preact) avec les écrans Aujourd'hui, Planning (jour, semaine et mois), Alertes, Scolarité et Réglages. Consultable hors ligne, « tirer pour actualiser », notifications sur le téléphone (changement de salle, nouvelle note…).
 - Cours e-campus copiés sur le serveur, rangés par semestre et pôle, avec recherche, badge « nouveau » et alerte à chaque nouveau fichier.
 - Devoirs : échéances e-campus avec leur date limite et tâches perso, résumées sur l'accueil.
 - Mails PARTAGE (à activer) : mails des profs et de l'école mis en avant, étiquetés (salle, examen, devoir, cours, annulation), « Créer un devoir » en un geste.
-- À venir : visite guidée, vue mois, thème sombre, IA pour les mails.
+- Thème sombre (automatique ou au choix) et visite guidée au premier lancement.
+- Option OneDrive : les cours rangés par semestre, matière et type copiés dans le OneDrive de l'élève, pour une reMarkable par exemple ([mise en place](docs/onedrive.md)).
+- À venir : meilleur tri des mails, IA pour les mails.
 
 ## Voir la démo (sans compte CPE)
 

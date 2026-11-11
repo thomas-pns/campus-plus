@@ -381,3 +381,9 @@ a.bouton { text-decoration: none; }
   :root[data-theme="sombre"] .avatar, :root[data-theme="sombre"] .une, :root[data-theme="sombre"] .tuile.pleine, :root[data-theme="sombre"] .jour.aujourdhui, :root[data-theme="sombre"] .bouton:not(.secondaire), :root[data-theme="sombre"] .badge-bleu, :root[data-theme="sombre"] .pastille-nouveau, :root[data-theme="sombre"] .rond.plein, :root[data-theme="sombre"] .filtres button.actif { --cpe: #1F6FB5; }
   :root[data-theme="sombre"] .pastille.sur-bleu { color: #1F6FB5; }
   :root[data-theme="sombre"] .une, :root[data-theme="sombre"] .connexion .logo img { box-shadow: none; }
+
+/* ---------- OneDrive ---------- */
+.rangee-libelle.lien { color: var(--lien); font-weight: 600; }
+.connexion-od { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 18px 16px; text-align: center; }
+.connexion-od p { color: var(--moyen); line-height: 1.4; }
+.code-od { font-size: 30px; font-weight: 800; letter-spacing: .12em; font-variant-numeric: tabular-nums; padding: 8px 16px; border-radius: 14px; background: var(--bleu-pale); color: var(--lien); user-select: all; -webkit-user-select: all; }

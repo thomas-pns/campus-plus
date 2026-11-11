@@ -4,6 +4,7 @@ import { ilYA, initialesDe } from '../dates';
 import { Icone, Segments } from '../composants';
 import { choisirTheme, lireTheme, type Theme } from '../theme';
 import { ReglagesNotifications } from './notifications';
+import { ReglagesOneDrive } from './onedrive';
 
 interface Props {
   d: Donnees;
@@ -64,6 +65,8 @@ export function Reglages({ d, maintenant, horsLigne, surRetour, surActualiser, s
       </section>
 
       <ReglagesNotifications horsLigne={horsLigne} />
+
+      <ReglagesOneDrive horsLigne={horsLigne} maintenant={maintenant} />
 
       <section class="bloc">
         <h2 class="titre-groupe">Compte</h2>

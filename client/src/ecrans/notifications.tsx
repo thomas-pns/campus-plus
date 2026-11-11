@@ -14,7 +14,7 @@ const LIBELLES: Record<Alerte['type'], string> = {
   mail: 'Mails des profs et de l’école',
 };
 
-function Interrupteur({ actif, libelle, surChange, desactive }: { actif: boolean; libelle: string; surChange: (v: boolean) => void; desactive?: boolean }) {
+export function Interrupteur({ actif, libelle, surChange, desactive }: { actif: boolean; libelle: string; surChange: (v: boolean) => void; desactive?: boolean }) {
   return (
     <button type="button" role="switch" aria-checked={actif} aria-label={libelle} class={`interrupteur ${actif ? 'actif' : ''}`} disabled={desactive} onClick={() => surChange(!actif)}>
       <span />

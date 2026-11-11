@@ -9,6 +9,7 @@ import type { Comptes } from './comptes.js';
 import type { Depot } from './depot.js';
 import type { SynchroCours } from './cours.js';
 import type { SynchroMails } from './mails.js';
+import type { SynchroOneDrive } from './onedrive.js';
 
 export interface Etat {
   /** Dernière synchro réussie. */
@@ -39,6 +40,8 @@ export interface OptionsSynchro {
   cours?: SynchroCours;
   /** Mails PARTAGE (seulement pour les élèves qui l'ont activé). */
   mails?: SynchroMails;
+  /** Copie des fichiers de cours sur OneDrive, après la synchro des cours (option de l'élève). */
+  onedrive?: SynchroOneDrive;
 }
 
 export class Synchro {
@@ -147,6 +150,11 @@ export class Synchro {
         if (mails) {
           const etat = await mails.etat(id);
           if (etat.actif && this.aSynchroniser(etat)) await mails.synchroniser(id);
+        }
+        const onedrive = this.options.onedrive;
+        if (onedrive) {
+          const etat = await onedrive.etat(id);
+          if (etat.actif && (etat.restants > 0 || this.aSynchroniser(etat))) await onedrive.synchroniser(id);
         }
       }
     } catch (e) {

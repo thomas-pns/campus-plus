@@ -12,6 +12,7 @@ import { Taches } from './taches.js';
 import { SynchroMails } from './mails.js';
 import { PartageClient } from './sources/partage.js';
 import { MoodleClient } from './sources/moodle.js';
+import { SynchroOneDrive } from './onedrive.js';
 
 const config = await lireConfig();
 const coffre = new Coffre(config.cle);
@@ -27,16 +28,20 @@ const mails = new SynchroMails(depot, comptes, () => new PartageClient(), {
   journal: (m) => console.log(`[mails] ${m}`),
   surNouvellesAlertes: (id, alertes) => notifications.alertes(id, alertes),
 });
+const onedrive = config.onedriveClientId
+  ? new SynchroOneDrive(depot, cours, { clientId: config.onedriveClientId, tenant: config.onedriveTenant, journal: (m) => console.log(`[onedrive] ${m}`) })
+  : undefined;
 const synchro = new Synchro(depot, comptes, fabriqueAurion, {
   cours,
   mails,
+  onedrive,
   minutes: config.minutesSynchro,
   journal: (m) => console.log(`[synchro] ${m}`),
   surNouvellesAlertes: (id, alertes) => notifications.alertes(id, alertes),
 });
 
 const app = await creerApp({
-  depot, comptes, synchro, notifications, cours, taches: new Taches(depot), mails, fabriqueAurion,
+  depot, comptes, synchro, notifications, cours, taches: new Taches(depot), mails, onedrive, fabriqueAurion,
   cookieSecurise: config.cookieSecurise,
   derriereProxy: config.derriereProxy,
   dossierClient: config.dossierClient,
