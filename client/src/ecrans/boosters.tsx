@@ -77,8 +77,13 @@ export function Boosters({ notes, surFin, demo }: { notes: Note[]; surFin: () =>
   // Comme dans les jeux de cartes : on glisse le doigt le long du haut du paquet pour le découper.
   const appui = (ev: PointerEvent) => {
     if (ouvert || !decoupe) return;
-    const r = (ev.currentTarget as HTMLElement).getBoundingClientRect();
+    const el = ev.currentTarget as HTMLElement;
+    const r = el.getBoundingClientRect();
     geste.current = { x: ev.clientX, largeur: r.width, bouge: false };
+    // Le paquet se redresse doucement (au lieu de rester figé penché) pendant qu'on découpe.
+    el.style.transform = getComputedStyle(el).transform;
+    el.style.animation = 'none';
+    requestAnimationFrame(() => { el.style.transition = 'transform .3s ease-out'; el.style.transform = 'none'; });
     (ev.currentTarget as HTMLElement).setPointerCapture?.(ev.pointerId);
   };
   const glisse = (ev: PointerEvent) => {
@@ -89,11 +94,19 @@ export function Boosters({ notes, surFin, demo }: { notes: Note[]; surFin: () =>
     setCoupe(p);
     if (p >= 1) { geste.current = null; ouvrir(); }
   };
-  const lache = () => {
+  const relacher = (el: HTMLElement | null) => {
+    if (!el) return;
+    el.style.transition = '';
+    el.style.transform = '';
+    el.style.animation = '';
+  };
+  const lache = (ev?: PointerEvent) => {
     const g = geste.current;
+    const el = (ev?.currentTarget as HTMLElement | undefined) ?? null;
     geste.current = null;
     if (ouvert) return;
     if (g && coupe > 0.6) return ouvrir();
+    relacher(el);
     setCoupe(0);
     if (g && !g.bouge) { setSecoue(true); setTimeout(() => setSecoue(false), 400); }
   };

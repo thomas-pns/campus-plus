@@ -689,3 +689,12 @@ a.bouton { text-decoration: none; }
 .boosters .booster-titre { font-size: 12px; font-weight: 800; letter-spacing: .1em; background: linear-gradient(90deg, #C026D3, #7C3AED); color: #fff; padding: 4px 14px; border-radius: 999px; box-shadow: 0 2px 0 #3B0764; }
 .boosters .booster-reflet { background: linear-gradient(115deg, transparent 38%, rgba(255,255,255,.45) 48%, rgba(255,255,255,.1) 52%, transparent 62%); }
 .boosters.ouvert .booster-haut { transform: translate(110px, -260px) rotate(48deg); }
+
+/* Ligne de découpe animée : couleurs qui changent et éclat de lumière qui la parcourt */
+.boosters .booster-ligne { height: 8px; bottom: 5px; background: linear-gradient(90deg, #FFD24A, #FFF6C8, #FF8AD8, #8AE8FF, #FFF6C8, #FFD24A) 0 0 / 300% 100%; animation: ligne-couleurs 3s linear infinite; box-shadow: 0 0 8px rgba(255, 220, 140, .7), 0 1px 3px rgba(0,0,0,.3); border-top: 1px solid rgba(255,255,255,.9); border-bottom: 1px solid rgba(255,255,255,.9); overflow: visible; }
+@keyframes ligne-couleurs { to { background-position: 300% 0; } }
+.boosters .booster-ligne::before { content: ""; position: absolute; top: -8px; bottom: -8px; width: 70px; left: -70px; background: radial-gradient(ellipse at center, rgba(255,255,255,.95) 0 20%, rgba(255,255,255,.5) 40%, transparent 70%); animation: eclat 2.2s ease-in-out infinite; mix-blend-mode: screen; }
+@keyframes eclat { 0% { left: -70px; opacity: 0; } 15% { opacity: 1; } 70% { opacity: 1; } 100% { left: 100%; opacity: 0; } }
+.boosters .booster.en-coupe .booster-ligne::before { animation: none; opacity: 0; }
+.boosters .booster-ligne::after { top: -6px; height: 20px; background: linear-gradient(90deg, rgba(255,255,255,.2), #fff 85%, #FFF6C8); border-radius: 10px; box-shadow: 0 0 14px #fff, 0 0 28px #FFD24A; filter: none; }
+@media (prefers-reduced-motion: reduce) { .boosters .booster-ligne, .boosters .booster-ligne::before { animation: none; } }
