@@ -79,6 +79,7 @@ export function App() {
       setDonnees(d);
       setHorsLigne(false);
       setPhase('appli');
+      if (visiteAFaire()) setVisite(true);
     } catch (e) {
       if (e instanceof api.ErreurApi && e.code === 401) return versConnexion();
       // Serveur injoignable : on garde ce qui est déjà sur l'appareil.

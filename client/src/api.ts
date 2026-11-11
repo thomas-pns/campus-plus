@@ -26,7 +26,7 @@ async function appel<T>(methode: string, url: string, corps?: unknown): Promise<
 }
 
 export const connexion = (identifiant: string, motDePasse: string) =>
-  appel<{ nom: string; etat: Etat }>('POST', '/api/connexion', { identifiant, motDePasse });
+  appel<{ nom: string; etat: Etat; nouveau?: boolean }>('POST', '/api/connexion', { identifiant, motDePasse });
 export const deconnexion = () => appel<{ ok: true }>('POST', '/api/deconnexion');
 export const supprimerCompte = () => appel<{ ok: true }>('DELETE', '/api/compte');
 export const synchroniser = () => appel<{ etat: Etat }>('POST', '/api/synchro');

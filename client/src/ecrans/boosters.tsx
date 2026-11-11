@@ -65,11 +65,14 @@ export function Boosters({ notes, surFin, demo }: { notes: Note[]; surFin: () =>
   }, []);
 
   if (!note || note.note === null) return null;
+  // Une lame de lumière blanche file le long de la découpe, puis le haut saute.
+  const [tranche, setTranche] = useState(false);
   const ouvrir = () => {
-    if (ouvert) return;
+    if (ouvert || tranche) return;
     if (!demo) marquerOuverte(note);
-    setOuvert(true);
+    setTranche(true);
     navigator.vibrate?.(30);
+    setTimeout(() => { setOuvert(true); setTranche(false); }, matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 260);
   };
   const suivante = () => {
     if (i + 1 >= notes.length) return surFin();
@@ -126,7 +129,7 @@ export function Boosters({ notes, surFin, demo }: { notes: Note[]; surFin: () =>
   const p = palier(note.note);
 
   return createPortal(
-    <div class={`boosters palier-${p} ${ouvert ? 'ouvert' : ''} ${depuisDroite ? 'depuis-droite' : ''}`} role="dialog" aria-modal="true" aria-label="Nouvelle note" style={{ '--coupe': coupe }}>
+    <div class={`boosters palier-${p} ${ouvert ? 'ouvert' : ''} ${tranche ? 'tranche' : ''} ${depuisDroite ? 'depuis-droite' : ''}`} role="dialog" aria-modal="true" aria-label="Nouvelle note" style={{ '--coupe': coupe }}>
       <button type="button" class="boosters-fermer" onClick={surFin} aria-label="Fermer">Fermer</button>
       {notes.length > 1 && <p class="boosters-compte">{i + 1} / {notes.length}</p>}
       {!ouvert && <p class="boosters-consigne">{coupe > 0 ? 'Continue jusqu’au bout…' : 'Trace une ligne pour ouvrir'}</p>}
@@ -142,6 +145,7 @@ export function Boosters({ notes, surFin, demo }: { notes: Note[]; surFin: () =>
             <span class="booster-code">{note.semestre.match(/semestre\s*(\d+)/i)?.[1] ? `S${note.semestre.match(/semestre\s*(\d+)/i)![1]}` : 'CPE'}</span>
             <span class="booster-ligne" />
             {eclats.map((e) => <i key={e.id} class="eclat-coupe" style={{ left: `${e.x}%`, '--a': `${e.a}deg` }} />)}
+            {tranche && <span class="lame-coupe" />}
           </span>
           <span class="booster-corps" aria-hidden="true">
             <span class="booster-art"><i /><i /><i /><i /></span>

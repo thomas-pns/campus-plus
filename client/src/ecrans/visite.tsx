@@ -8,13 +8,20 @@ import { Boosters, EXEMPLES } from './boosters';
 
 
 const CLE = 'campus-plus:visite-vue';
+const CLE_OBLIGATOIRE = 'campus-plus:visite-obligatoire';
 
 export function visiteAFaire(): boolean {
-  try { return !localStorage.getItem(CLE); } catch { return false; }
+  try { return !localStorage.getItem(CLE) || !!localStorage.getItem(CLE_OBLIGATOIRE); } catch { return false; }
 }
 
+/** Première connexion de l'élève sur ce serveur : la visite ne peut pas être passée. */
+export function visiteObligatoire(): void {
+  try { localStorage.setItem(CLE_OBLIGATOIRE, '1'); localStorage.removeItem(CLE); } catch { /* rien à faire */ }
+}
+const estObligatoire = () => { try { return !!localStorage.getItem(CLE_OBLIGATOIRE); } catch { return false; } };
+
 function marquerVue(): void {
-  try { localStorage.setItem(CLE, '1'); } catch { /* rien à faire */ }
+  try { localStorage.setItem(CLE, '1'); localStorage.removeItem(CLE_OBLIGATOIRE); } catch { /* rien à faire */ }
 }
 
 export type OngletVisite = 'aujourdhui' | 'planning' | 'cours' | 'alertes' | 'scolarite';
@@ -27,6 +34,8 @@ interface Etape {
   texte: string;
   /** Exemple à essayer pendant la visite. */
   exemple?: 'booster';
+  /** Étape illustrée « ajouter à l'écran d'accueil ». */
+  installer?: boolean;
 }
 
 const installee = () => (navigator as Navigator & { standalone?: boolean }).standalone === true || matchMedia('(display-mode: standalone)').matches;
@@ -34,10 +43,8 @@ const surIPhone = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigat
 
 /** Proposée seulement dans le navigateur : installer l'appli sur l'écran d'accueil. */
 const INSTALLER: Etape = {
-  onglet: null, cible: [], titre: 'Installe Campus+',
-  texte: surIPhone()
-    ? 'Dans Safari, touche Partager (le carré avec une flèche), puis « Sur l’écran d’accueil ». Ouvre ensuite Campus+ depuis son icône : plein écran, et les notifications marchent.'
-    : 'Dans le menu du navigateur (⋮), choisis « Installer l’application » ou « Ajouter à l’écran d’accueil ». Campus+ s’ouvrira comme une vraie appli.',
+  onglet: 'aujourdhui', cible: [], titre: 'Dernière étape : installe Campus+', installer: true,
+  texte: 'Ajoute-la à ton écran d’accueil : elle s’ouvre en plein écran, comme une vraie appli, et les notifications marchent.',
 };
 
 const ETAPES_BASE: Etape[] = [
@@ -92,7 +99,8 @@ function useCible(etape: Etape | null, cle: number): Cadre | null {
 
 export function Visite({ surFin, surAller }: { surFin: () => void; surAller: (o: OngletVisite) => void }) {
   // -1 : mot de bienvenue ; ensuite, index de l'étape.
-  const [ETAPES] = useState(() => (installee() ? ETAPES_BASE : [INSTALLER, ...ETAPES_BASE]));
+  const [ETAPES] = useState(() => (installee() ? ETAPES_BASE : [...ETAPES_BASE, INSTALLER]));
+  const [obligatoire] = useState(estObligatoire);
   const [i, setI] = useState(-1);
   const [exemple, setExemple] = useState(false);
   const etape = i >= 0 ? ETAPES[i] : null;
@@ -101,7 +109,7 @@ export function Visite({ surFin, surAller }: { surFin: () => void; surAller: (o:
 
   useEffect(() => { if (etape?.onglet) surAller(etape.onglet); }, [i]);
   useEffect(() => {
-    const touche = (ev: KeyboardEvent) => { if (ev.key === 'Escape') finir(); };
+    const touche = (ev: KeyboardEvent) => { if (ev.key === 'Escape' && !estObligatoire()) finir(); };
     window.addEventListener('keydown', touche);
     return () => window.removeEventListener('keydown', touche);
   }, []);
@@ -114,7 +122,7 @@ export function Visite({ surFin, surAller }: { surFin: () => void; surAller: (o:
           <h2 id="visite-titre">Bienvenue sur Campus+</h2>
           <p>Ton planning, tes notes, tes cours et tes mails de CPE au même endroit. On fait le tour en 30 secondes ?</p>
           <button type="button" class="bouton" onClick={() => setI(0)}>Commencer la visite</button>
-          <button type="button" class="lien-bouton" onClick={finir}>Plus tard</button>
+          {obligatoire ? <p class="petit-texte">Première connexion : 1 minute pour tout découvrir.</p> : <button type="button" class="lien-bouton" onClick={finir}>Plus tard</button>}
         </div>
       </div>
     );
@@ -139,13 +147,37 @@ export function Visite({ surFin, surAller }: { surFin: () => void; surAller: (o:
         <p class="visite-etape">{i + 1} / {ETAPES.length}</p>
         <h2 id="visite-titre">{etape.titre}</h2>
         <p id="visite-texte">{etape.texte}</p>
+        {etape.installer && <Installer />}
         <div class="visite-actions">
-          {!derniere && <button type="button" class="lien-bouton" onClick={finir}>Passer</button>}
+          {!derniere && !obligatoire && <button type="button" class="lien-bouton" onClick={finir}>Passer</button>}
           {etape.exemple === 'booster' && <button type="button" class="bouton secondaire petit" onClick={() => setExemple(true)}>Voir un exemple</button>}
           {i > 0 && !etape.exemple && <button type="button" class="bouton secondaire petit" onClick={() => setI(i - 1)}>Retour</button>}
           <button type="button" class="bouton petit" onClick={derniere ? finir : () => setI(i + 1)}>{derniere ? 'Terminer' : 'Suivant'}</button>
         </div>
       </div>
     </div>
+  );
+}
+
+/** Les trois gestes pour installer l'appli, dessinés. */
+function Installer() {
+  const iphone = surIPhone();
+  const etapes = iphone
+    ? [
+      { icone: <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 7l4-4l4 4M6 11H5v9h14v-9h-1" /></svg>, texte: <>Dans Safari, touche <b>Partager</b> (en bas)</> },
+      { icone: <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="4" width="16" height="16" rx="4" /><path d="M12 8v8M8 12h8" /></svg>, texte: <>Choisis <b>Sur l’écran d’accueil</b>, puis <b>Ajouter</b></> },
+      { icone: <img src="/icone.svg" alt="" width="30" height="30" />, texte: <>Ouvre <b>Campus+</b> depuis son icône</> },
+    ]
+    : [
+      { icone: <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><circle cx="12" cy="5" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="12" cy="19" r="2" /></svg>, texte: <>Ouvre le <b>menu</b> du navigateur (⋮)</> },
+      { icone: <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="4" width="16" height="16" rx="4" /><path d="M12 8v8M8 12h8" /></svg>, texte: <>Choisis <b>Installer l’application</b></> },
+      { icone: <img src="/icone.svg" alt="" width="30" height="30" />, texte: <>Ouvre <b>Campus+</b> depuis son icône</> },
+    ];
+  return (
+    <ol class="installer">
+      {etapes.map((e, k) => (
+        <li><span class="installer-num">{k + 1}</span><span class="installer-icone">{e.icone}</span><span>{e.texte}</span></li>
+      ))}
+    </ol>
   );
 }

@@ -1,5 +1,6 @@
 import { useState } from 'preact/hooks';
 import { connexion, ErreurApi } from '../api';
+import { visiteObligatoire } from './visite';
 
 export function Connexion({ surReussite, message }: { surReussite: () => Promise<void>; message?: string }) {
   const [identifiant, setIdentifiant] = useState('');
@@ -13,7 +14,8 @@ export function Connexion({ surReussite, message }: { surReussite: () => Promise
     setOccupe(true);
     setErreur('');
     try {
-      await connexion(identifiant.trim(), motDePasse);
+      const r = await connexion(identifiant.trim(), motDePasse);
+      if (r.nouveau) visiteObligatoire();
       setMotDePasse('');
       await surReussite();
     } catch (e) {

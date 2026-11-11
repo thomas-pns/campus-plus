@@ -141,6 +141,8 @@ export async function creerApp(s: Services): Promise<FastifyInstance> {
       return rep.code(502).send({ erreur: 'MyCPE ne répond pas pour le moment' });
     }
     limiteur.oublier(cles[0]);
+    // Premier passage de cet élève sur ce serveur : l'appli lui fait faire la visite guidée.
+    const nouveau = !(await s.comptes.lire(id));
     await s.comptes.enregistrer(identifiant, motDePasse);
     const jeton = await s.comptes.ouvrirSession(id);
     // Première récupération avec la connexion déjà ouverte : l'élève a ses données tout de suite.
@@ -152,7 +154,7 @@ export async function creerApp(s: Services): Promise<FastifyInstance> {
     }
     const compte = await s.comptes.lire(id);
     rep.setCookie(COOKIE, jeton, { ...optionsCookie, maxAge: DUREE_COOKIE_S });
-    return { nom: compte?.nom ?? '', etat };
+    return { nom: compte?.nom ?? '', etat, nouveau };
   });
 
   app.post('/api/deconnexion', async (req, rep) => {
