@@ -13,9 +13,10 @@ interface Props {
   surActualiser: () => Promise<void>;
   surDeconnexion: () => Promise<void>;
   surSuppression: () => Promise<void>;
+  surVisite: () => void;
 }
 
-export function Reglages({ d, maintenant, horsLigne, surRetour, surActualiser, surDeconnexion, surSuppression }: Props) {
+export function Reglages({ d, maintenant, horsLigne, surRetour, surActualiser, surDeconnexion, surSuppression, surVisite }: Props) {
   const [occupe, setOccupe] = useState<'' | 'actualiser' | 'deconnexion' | 'suppression'>('');
   const [confirmer, setConfirmer] = useState(false);
   const [theme, setTheme] = useState<Theme>(lireTheme);
@@ -98,6 +99,11 @@ export function Reglages({ d, maintenant, horsLigne, surRetour, surActualiser, s
       <section class="bloc">
         <h2 class="titre-groupe">À propos</h2>
         <div class="carte liste">
+          <button type="button" class="rangee" onClick={surVisite}>
+            <span class="icone-rangee bleu"><Icone nom="soleil" taille={17} epaisseur={2.2} /></span>
+            <span class="rangee-libelle">Revoir la visite guidée</span>
+            <span class="rangee-valeur"><Icone nom="droite" taille={14} epaisseur={2.4} /></span>
+          </button>
           <a class="rangee" href="https://github.com/thomas-pns/campus-plus" target="_blank" rel="noopener noreferrer">
             <span class="icone-rangee noir"><Icone nom="code" taille={17} epaisseur={2.2} /></span>
             <span class="rangee-libelle">Code source sur GitHub</span>

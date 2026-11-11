@@ -8,6 +8,7 @@ import { Planning } from './ecrans/planning';
 import { Scolarite } from './ecrans/scolarite';
 import { Alertes } from './ecrans/alertes';
 import { Reglages } from './ecrans/reglages';
+import { Visite, visiteAFaire } from './ecrans/visite';
 import { Connexion } from './ecrans/connexion';
 import { CoursEcran } from './ecrans/cours';
 import { fichiersDe } from './cours';
@@ -52,6 +53,7 @@ export function App() {
   const reglages = page === 'reglages';
   const setReglages = (oui: boolean) => setPage(oui ? 'reglages' : null);
   const [fiche, setFiche] = useState<Evenement | null>(null);
+  const [visite, setVisite] = useState(visiteAFaire);
   const [brouillon, setBrouillon] = useState<Brouillon | null>(null);
   const [vuesJusqua, setVuesJusqua] = useState(api.alertesVuesJusqua);
   const [coursOuvert, setCoursOuvert] = useState<number | null>(null);
@@ -224,7 +226,8 @@ export function App() {
         ) : reglages ? (
           <Reglages d={d} maintenant={maintenant} horsLigne={horsLigne} surRetour={() => setReglages(false)} surActualiser={actualiser}
             surDeconnexion={async () => { await api.deconnexion().catch(() => undefined); versConnexion(); }}
-            surSuppression={async () => { await api.supprimerCompte(); versConnexion(); }} />
+            surSuppression={async () => { await api.supprimerCompte(); versConnexion(); }}
+            surVisite={() => { setReglages(false); setOnglet('aujourdhui'); setVisite(true); }} />
         ) : onglet === 'aujourdhui' ? (
           <Aujourdhui d={d} maintenant={maintenant} surOuvrir={setFiche} surReglages={() => setReglages(true)} surAller={choisir}
             surDevoirs={() => setPage('devoirs')} surCocher={cocher} />
@@ -253,6 +256,7 @@ export function App() {
         ))}
       </nav>
 
+      {visite && <Visite surFin={() => setVisite(false)} />}
       {fiche && <FicheEvenement e={fiche} surFermer={fermerFiche} surAjouterDevoir={d.afaire && !horsLigne ? devoirDepuisCreneau : undefined} />}
       {brouillon && d.afaire && (
         <AjoutDevoir b={brouillon} surFermer={fermerBrouillon}
