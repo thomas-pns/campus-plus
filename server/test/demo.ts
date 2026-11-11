@@ -16,6 +16,9 @@ import { AurionClient } from '../src/sources/aurion.js';
 import { creerApp } from '../src/api.js';
 import { Notifications } from '../src/notifications.js';
 import { Taches } from '../src/taches.js';
+import { SynchroMails } from '../src/mails.js';
+import { PartageClient } from '../src/sources/partage.js';
+import { FauxPartage, mailsFaux } from './faux-partage.js';
 import { SynchroCours } from '../src/cours.js';
 import { MoodleClient } from '../src/sources/moodle.js';
 import { coursFaux, FauxMoodle } from './faux-moodle.js';
@@ -105,6 +108,11 @@ moodle.echeances = [
   { id: 504, nom: 'Projet : site web', module: 'assign', cours: 4286, date: dans(20, 18) },
 ];
 const adressesMoodle = await moodle.demarrer();
+const partage = new FauxPartage();
+partage.adresse = 'demo';
+partage.motDePasse = 'demo';
+partage.mails = mailsFaux(Date.now()).map((m) => (m.deNom.includes('DUPONT') ? m : m));
+const basePartage = await partage.demarrer();
 
 const coffre = new Coffre(randomBytes(32));
 const depot = new Depot(await mkdtemp(join(tmpdir(), 'campus-demo-')), coffre);
@@ -113,8 +121,9 @@ const fabriqueAurion = () => new AurionClient(aurionBase);
 const notifications = await Notifications.demarrer(depot, coffre, await mkdtemp(join(tmpdir(), 'campus-demo-vapid-')));
 const dossierDemo = await mkdtemp(join(tmpdir(), 'campus-demo-fichiers-'));
 const cours = new SynchroCours(depot, comptes, coffre, dossierDemo, () => new MoodleClient(adressesMoodle), { surNouvellesAlertes: (id, a) => notifications.alertes(id, a) });
-const synchro = new Synchro(depot, comptes, fabriqueAurion, { minutes: 15, cours, surNouvellesAlertes: (id, a) => notifications.alertes(id, a) });
-const app = await creerApp({ depot, comptes, synchro, notifications, cours, taches: new Taches(depot), fabriqueAurion, cookieSecurise: false, dossierClient: process.env.CLIENT_DIR ?? '../client/dist' });
+const mails = new SynchroMails(depot, comptes, () => new PartageClient(basePartage), { base: basePartage, surNouvellesAlertes: (id, a) => notifications.alertes(id, a) });
+const synchro = new Synchro(depot, comptes, fabriqueAurion, { minutes: 15, cours, mails, surNouvellesAlertes: (id, a) => notifications.alertes(id, a) });
+const app = await creerApp({ depot, comptes, synchro, notifications, cours, taches: new Taches(depot), mails, fabriqueAurion, cookieSecurise: false, dossierClient: process.env.CLIENT_DIR ?? '../client/dist' });
 const port = Number(process.env.PORT ?? 8787);
 await app.listen({ port, host: '127.0.0.1' });
 console.log(`Démo : http://localhost:${port}  (identifiant « demo », mot de passe « demo »)`);

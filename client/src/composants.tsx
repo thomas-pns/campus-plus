@@ -33,6 +33,8 @@ const TRACES = {
   coche: 'M5 12l5 5L19 7',
   plus: 'M12 5v14M5 12h14',
   liste: 'M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01',
+  boite: 'M4 13l2.5-7h11L20 13v6H4v-6zM4 13h5l1 2h4l1-2h5',
+  mail: 'M4 6h16v12H4zM4 7l8 6l8-6',
   horsLigne: 'M3 3l18 18M8.5 16.5a5 5 0 0 1 7 0M5 13a10 10 0 0 1 4-2.6M19 13a10 10 0 0 0-5-2.8M2 9.5a15 15 0 0 1 4.5-3M22 9.5A15 15 0 0 0 11 6M12 20h.01',
 } as const;
 

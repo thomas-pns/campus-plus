@@ -15,6 +15,7 @@ import type { Depot } from './depot.js';
 import type { Synchro } from './synchro.js';
 import type { SynchroCours } from './cours.js';
 import type { Taches } from './taches.js';
+import type { SynchroMails } from './mails.js';
 import { abonnementValide, TYPES_PAR_DEFAUT, type Notifications } from './notifications.js';
 
 const COOKIE = 'cp_session';
@@ -31,6 +32,7 @@ export interface Services {
   notifications?: Notifications;
   cours?: SynchroCours;
   taches?: Taches;
+  mails?: SynchroMails;
   fabriqueAurion: () => AurionClient;
   cookieSecurise: boolean;
   /** Vrai derrière un proxy inversé (cas du NAS) : l'adresse du visiteur est lue dans X-Forwarded-For. */
@@ -204,6 +206,7 @@ export async function creerApp(s: Services): Promise<FastifyInstance> {
     const etat = await s.synchro.etat(c.id);
     if (etat.derniereTentative && maintenant() - Date.parse(etat.derniereTentative) < DELAI_SYNCHRO_MANUELLE_MS) return { etat };
     if (s.cours) void s.cours.synchroniser(c.id).catch(() => undefined);
+    if (s.mails) void s.mails.synchroniser(c.id).catch(() => undefined);
     return { etat: await s.synchro.synchroniser(c.id) };
   });
 
@@ -290,6 +293,29 @@ export async function creerApp(s: Services): Promise<FastifyInstance> {
     }, async (req) => ({
       echeancesFaites: await taches.marquerEcheance(req.compte!.id, (req.params as { echeance: number }).echeance, (req.body as { fait: boolean }).fait),
     }));
+  }
+
+  /* ---------- Mails PARTAGE ---------- */
+
+  const mails = s.mails;
+  if (mails) {
+    app.get('/api/mails', { onRequest: exigerSession }, async (req) => {
+      const id = req.compte!.id;
+      const etat = await mails.etat(id);
+      return { etat, mails: etat.actif ? await mails.mails(id) : [] };
+    });
+
+    app.put('/api/mails/actif', {
+      onRequest: exigerSession,
+      schema: { body: { type: 'object', required: ['actif'], additionalProperties: false, properties: { actif: { type: 'boolean' } } } },
+    }, async (req) => {
+      const id = req.compte!.id;
+      const { actif } = req.body as { actif: boolean };
+      await mails.activer(id, actif);
+      // Première lecture tout de suite, pour un retour immédiat (mauvais mot de passe, etc.).
+      const etat = actif ? await mails.synchroniser(id) : await mails.etat(id);
+      return { etat, mails: etat.actif ? await mails.mails(id) : [] };
+    });
   }
 
   /* ---------- Notifications ---------- */

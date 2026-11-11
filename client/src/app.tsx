@@ -16,13 +16,13 @@ import { memeMatiere, type Ligne } from './afaire';
 import { AjoutDevoir, type Brouillon } from './ecrans/ajout-devoir';
 import { nomCourt } from './cours';
 import { jourDe } from './dates';
-import type { Cours } from './types';
+import type { Cours, Mail } from './types';
 
 const ONGLETS = [
   { id: 'aujourdhui', nom: "Aujourd'hui", icone: 'soleil' },
   { id: 'planning', nom: 'Planning', icone: 'calendrier' },
   { id: 'cours', nom: 'Cours', icone: 'livre' },
-  { id: 'alertes', nom: 'Alertes', icone: 'cloche' },
+  { id: 'alertes', nom: 'Boîte', icone: 'boite' },
   { id: 'scolarite', nom: 'Scolarité', icone: 'diplome' },
 ] as const satisfies readonly { id: string; nom: string; icone: NomIcone }[];
 type Onglet = (typeof ONGLETS)[number]['id'];
@@ -131,6 +131,22 @@ export function App() {
 
   const fermerBrouillon = useCallback(() => setBrouillon(null), []);
 
+  const devoirDepuisMail = (m: Mail) => {
+    const matiere = m.matiere ?? '';
+    const suivante = matiere ? prochaineSeance(matiere, Date.now()) : undefined;
+    const cours = matiere ? donnees?.cours?.find((c) => memeMatiere(nomCourt(c), matiere)) : undefined;
+    setBrouillon({ matiere: matiere || m.de, cours: cours?.id ?? null, date: suivante ? jourDe(suivante.debut) : '', titre: m.sujet });
+  };
+
+  const changerMails = (mails: NonNullable<Donnees['mails']>) => {
+    setDonnees((d) => {
+      if (!d) return d;
+      const nouveau = { ...d, mails };
+      api.ecrireCopie(nouveau);
+      return nouveau;
+    });
+  };
+
   const cocher = (l: Ligne) => {
     if (donnees?.afaire) void basculer(l, donnees.afaire).then(changerAFaire).catch(() => undefined);
   };
@@ -218,7 +234,8 @@ export function App() {
           <CoursEcran d={d} maintenant={maintenant} vus={fichiersVus} coursOuvert={coursOuvert} surOuvrirCours={setCoursOuvert} surAjouterDevoir={devoirDepuisCours} />
         ) : onglet === 'alertes' ? (
           <Alertes d={d} maintenant={maintenant} vuesJusqua={vuesJusqua} surOuvrir={setFiche} surAller={choisir} surOuvrirCours={ouvrirCours}
-            surDevoirs={() => { setOnglet('aujourdhui'); setPage('devoirs'); }} />
+            surDevoirs={() => { setOnglet('aujourdhui'); setPage('devoirs'); }}
+            horsLigne={horsLigne} surChangeMails={changerMails} surCreerDevoir={devoirDepuisMail} />
         ) : (
           <Scolarite d={d} />
         )}

@@ -16,7 +16,7 @@ export interface Abonnement {
 }
 
 export type Types = Record<TypeAlerte, boolean>;
-export const TYPES_PAR_DEFAUT: Types = { salle: true, horaire: true, ajoute: true, supprime: true, note: true, fichier: true, devoir: true };
+export const TYPES_PAR_DEFAUT: Types = { salle: true, horaire: true, ajoute: true, supprime: true, note: true, fichier: true, devoir: true, mail: true };
 
 interface Reglages {
   abonnements: Abonnement[];

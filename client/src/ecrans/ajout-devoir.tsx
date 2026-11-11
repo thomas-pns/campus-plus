@@ -9,11 +9,13 @@ export interface Brouillon {
   cours: number | null;
   /** Date proposée « AAAA-MM-JJ » (prochaine séance), ou vide. */
   date: string;
+  /** Texte proposé (depuis un mail), facultatif. */
+  titre?: string;
 }
 
 /** Panneau « Nouveau devoir » rattaché à une matière, ouvert depuis un créneau ou un cours. */
 export function AjoutDevoir({ b, surFermer, surAjout }: { b: Brouillon; surFermer: () => void; surAjout: (t: Tache) => void }) {
-  const [titre, setTitre] = useState('');
+  const [titre, setTitre] = useState(b.titre ?? '');
   const [date, setDate] = useState(b.date);
   const [erreur, setErreur] = useState('');
   const [occupe, setOccupe] = useState(false);

@@ -1,6 +1,9 @@
 import type { Alerte, Donnees, Evenement } from '../types';
 import { ilYA } from '../dates';
-import { Entete, Icone, Vide, type NomIcone } from '../composants';
+import { useState } from 'preact/hooks';
+import { Entete, Icone, Segments, Vide, type NomIcone } from '../composants';
+import { Mails } from './mails';
+import type { Mail } from '../types';
 
 const TYPES: Record<Alerte['type'], { nom: string; classe: string; icone: NomIcone }> = {
   salle: { nom: 'Salle', classe: 'c-examen', icone: 'lieu' },
@@ -10,6 +13,7 @@ const TYPES: Record<Alerte['type'], { nom: string; classe: string; icone: NomIco
   note: { nom: 'Note', classe: 'c-langues', icone: 'note' },
   fichier: { nom: 'Cours', classe: 'c-td', icone: 'fichier' },
   devoir: { nom: 'Devoir', classe: 'c-tp', icone: 'liste' },
+  mail: { nom: 'Mail', classe: 'c-cours', icone: 'mail' },
 };
 
 interface Props {
@@ -21,18 +25,28 @@ interface Props {
   surAller: (onglet: 'scolarite') => void;
   surOuvrirCours: (id: number) => void;
   surDevoirs: () => void;
+  horsLigne: boolean;
+  surChangeMails: (m: NonNullable<Donnees['mails']>) => void;
+  surCreerDevoir: (m: Mail) => void;
 }
 
-export function Alertes({ d, maintenant, vuesJusqua, surOuvrir, surAller, surOuvrirCours, surDevoirs }: Props) {
+const RUBRIQUES = [{ id: 'alertes', nom: 'Alertes' }, { id: 'mails', nom: 'Mails' }] as const;
+
+export function Alertes({ d, maintenant, vuesJusqua, surOuvrir, surAller, surOuvrirCours, surDevoirs, horsLigne, surChangeMails, surCreerDevoir }: Props) {
+  const [rubrique, setRubrique] = useState<'alertes' | 'mails'>('alertes');
   return (
     <>
-      <Entete surtitre="Changements détectés" titre="Alertes" />
-      {d.alertes.length ? (
+      <Entete surtitre={rubrique === 'mails' ? 'PARTAGE, triés' : 'Changements détectés'} titre="Boîte" />
+      {d.mails && <Segments options={RUBRIQUES} valeur={rubrique} surChoix={setRubrique} etiquette="Rubrique" />}
+      {rubrique === 'mails' && d.mails ? (
+        <Mails d={d} maintenant={maintenant} horsLigne={horsLigne} surChange={surChangeMails} surCreerDevoir={surCreerDevoir} />
+      ) : d.alertes.length ? (
         <div class="liste-alertes">
           {d.alertes.map((a) => {
             const t = TYPES[a.type];
             const evenement = a.cleEvenement ? d.planning.find((e) => e.cle === a.cleEvenement) : undefined;
             const action = a.type === 'note' ? () => surAller('scolarite')
+              : a.type === 'mail' ? () => setRubrique('mails')
               : a.type === 'devoir' ? surDevoirs
               : a.type === 'fichier' && a.cours !== undefined ? () => surOuvrirCours(a.cours!)
               : evenement ? () => surOuvrir(evenement) : undefined;
@@ -44,7 +58,7 @@ export function Alertes({ d, maintenant, vuesJusqua, surOuvrir, surAller, surOuv
                 </div>
                 <h2>{a.titre}</h2>
                 <p>{a.detail}</p>
-                {action && <button type="button" class="bouton petit" onClick={action}>{a.type === 'note' ? 'Voir mes notes' : a.type === 'fichier' ? 'Ouvrir le cours' : a.type === 'devoir' ? 'Voir mes devoirs' : 'Voir le créneau'}</button>}
+                {action && <button type="button" class="bouton petit" onClick={action}>{a.type === 'note' ? 'Voir mes notes' : a.type === 'fichier' ? 'Ouvrir le cours' : a.type === 'devoir' ? 'Voir mes devoirs' : a.type === 'mail' ? 'Voir les mails' : 'Voir le créneau'}</button>}
               </article>
             );
           })}

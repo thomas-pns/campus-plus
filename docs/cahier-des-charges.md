@@ -56,5 +56,6 @@ Le NAS reste la référence ; s'il est activé, il copie l'arborescence rangée 
 4. ✅ Notifications push (salle, horaire, créneau, note), réglables par type dans les Réglages.
 5. ✅ Cours e-campus : connexion CAS, jeton mobile, fichiers copiés et chiffrés sur le serveur (une seule copie pour tous), onglet Cours avec recherche et badge « nouveau », alertes « nouveau fichier ». Testé contre un faux e-campus ; reste l'essai en vrai.
 6. ✅ Devoirs : échéances e-campus (bloc Chronologie : devoirs, tests) avec date limite, tâches perso, « À faire » sur l'accueil, alertes « nouveau devoir ».
-7. Mails PARTAGE + tri IA (devoirs et changements de salle détectés dans les mails), tri IA des fichiers douteux.
-8. Visite guidée, puis OneDrive.
+7. ✅ Mails PARTAGE triés sans IA (opt-in) : profs reconnus par le planning (nom + prénom), école, étiquettes Salle / Examen / Devoir / Cours / Annulation, « Créer un devoir » depuis un mail, alertes pour les mails des profs et de l'école.
+8. Plus tard : une IA (locale sur le NAS ou par clé d'API) pour résumer les mails, créer les devoirs et classer les fichiers douteux.
+9. Visite guidée, puis OneDrive.

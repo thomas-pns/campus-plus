@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto';
 import type { Evenement } from './sources/planning.js';
 import type { Note } from './sources/aurion.js';
 
-export type TypeAlerte = 'salle' | 'horaire' | 'supprime' | 'ajoute' | 'note' | 'fichier' | 'devoir';
+export type TypeAlerte = 'salle' | 'horaire' | 'supprime' | 'ajoute' | 'note' | 'fichier' | 'devoir' | 'mail';
 
 export interface Alerte {
   id: string;

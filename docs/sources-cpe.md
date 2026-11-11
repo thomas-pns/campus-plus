@@ -66,8 +66,12 @@ Testé : 29 cours, sections, ressources et sous-sections (Moodle 4.5+).
 
 ## Mails — `https://partage.cpe.fr` (Zimbra « PARTAGE »)
 
-- Connexion classique `username` / `password` (+ `login_csrf`), pas de SSO.
-- Accès serveur envisagé : IMAP (déjà utilisé par l'app Mail d'iOS) ou API REST Zimbra (`/home/~/inbox?fmt=json`).
+Adresse mail complète + même mot de passe que MyCPE. Accès par l'API SOAP de Zimbra en JSON (`POST /service/soap/<Requête>`) :
+- `AuthRequest` (`urn:zimbraAccount`) → `authToken` ; mauvais mot de passe : faute `account.AUTH_FAILED` (vérifié le 11/11/2026 avec une adresse inventée).
+- `SearchRequest` (`urn:zimbraMail`, `query: "in:inbox"`, `sortBy: dateDesc`) → `m[]` : `id`, `d` (date ms), `su` (objet), `fr` (début du texte), `e[]` (expéditeur `t: "f"`, `a` adresse, `p` nom).
+  Pas de filtre de date dans la requête : son format dépend de la langue du compte.
+- `GetMsgRequest` (`read: 0`, `html: 1`, `neuter: 1`) → texte complet, sans marquer le mail comme lu.
+- Le lien « Voir le mail » (`/h/search?action=view&id=…`, interface classique) n'est pas vérifié.
 
 ## Planning iCal (secours)
 

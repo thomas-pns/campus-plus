@@ -9,6 +9,8 @@ import { creerApp } from './api.js';
 import { Notifications } from './notifications.js';
 import { SynchroCours } from './cours.js';
 import { Taches } from './taches.js';
+import { SynchroMails } from './mails.js';
+import { PartageClient } from './sources/partage.js';
 import { MoodleClient } from './sources/moodle.js';
 
 const config = await lireConfig();
@@ -21,15 +23,20 @@ const cours = new SynchroCours(depot, comptes, coffre, config.dossierDonnees, ()
   journal: (m) => console.log(`[cours] ${m}`),
   surNouvellesAlertes: (id, alertes) => notifications.alertes(id, alertes),
 });
+const mails = new SynchroMails(depot, comptes, () => new PartageClient(), {
+  journal: (m) => console.log(`[mails] ${m}`),
+  surNouvellesAlertes: (id, alertes) => notifications.alertes(id, alertes),
+});
 const synchro = new Synchro(depot, comptes, fabriqueAurion, {
   cours,
+  mails,
   minutes: config.minutesSynchro,
   journal: (m) => console.log(`[synchro] ${m}`),
   surNouvellesAlertes: (id, alertes) => notifications.alertes(id, alertes),
 });
 
 const app = await creerApp({
-  depot, comptes, synchro, notifications, cours, taches: new Taches(depot), fabriqueAurion,
+  depot, comptes, synchro, notifications, cours, taches: new Taches(depot), mails, fabriqueAurion,
   cookieSecurise: config.cookieSecurise,
   derriereProxy: config.derriereProxy,
   dossierClient: config.dossierClient,

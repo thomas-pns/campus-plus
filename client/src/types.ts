@@ -51,7 +51,7 @@ export interface Absence {
 
 export interface Alerte {
   id: string;
-  type: 'salle' | 'horaire' | 'supprime' | 'ajoute' | 'note' | 'fichier' | 'devoir';
+  type: 'salle' | 'horaire' | 'supprime' | 'ajoute' | 'note' | 'fichier' | 'devoir' | 'mail';
   date: string;
   titre: string;
   detail: string;
@@ -131,6 +131,28 @@ export interface Tache {
   creeLe: string;
 }
 
+export type EtiquetteMail = 'salle' | 'annulation' | 'examen' | 'devoir' | 'cours';
+
+export interface Mail {
+  id: string;
+  /** Date de réception (ms). */
+  date: number;
+  de: string;
+  adresse: string;
+  sujet: string;
+  extrait: string;
+  categorie: 'prof' | 'ecole' | 'autre';
+  etiquettes: EtiquetteMail[];
+  matiere: string | null;
+  lien: string;
+}
+
+export interface EtatMails {
+  actif: boolean;
+  derniereSynchro: string | null;
+  erreur: string | null;
+}
+
 /** Tout ce que l'appli affiche, gardé aussi sur l'appareil pour fonctionner hors ligne. */
 export interface Donnees {
   moi: Moi;
@@ -144,6 +166,8 @@ export interface Donnees {
   etatCours: EtatCours | null;
   /** null : le serveur ne gère pas encore les devoirs. */
   afaire: { echeances: Echeance[]; taches: Tache[] } | null;
+  /** null : le serveur ne gère pas encore les mails. */
+  mails: { etat: EtatMails; mails: Mail[] } | null;
   /** Moment où l'appareil a reçu ces données (ms). */
   recuLe: number;
 }

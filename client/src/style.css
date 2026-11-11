@@ -286,3 +286,18 @@ h1 { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.
 .champ:focus { outline: none; border-color: var(--cpe); background: #fff; }
 .entete-cours .bouton.petit { margin-top: 2px; }
 .feuille-formulaire { display: flex; flex-direction: column; gap: 14px; }
+
+/* ---------- Mails ---------- */
+.filtres { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.filtres button { flex: none; height: 36px; padding: 0 14px; border-radius: 18px; background: var(--carte); font-size: 14px; font-weight: 600; }
+.filtres button.actif { background: var(--cpe); color: #fff; }
+.mail .pastilles { gap: 6px; }
+.mail-de { font-size: 14px; font-weight: 600; color: var(--moyen); }
+.mail-extrait { font-size: 14px; color: var(--doux); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.actions .bouton.petit { align-self: auto; text-decoration: none; }
+.activation { padding: 20px; display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
+.activation h2 { font-size: 20px; font-weight: 800; }
+.activation p { font-size: 15px; line-height: 1.45; color: var(--moyen); }
+.activation .petit-texte { padding: 0; }
+.lien-texte { color: var(--cpe); font-weight: 600; font-size: 13px; text-decoration: underline; }
