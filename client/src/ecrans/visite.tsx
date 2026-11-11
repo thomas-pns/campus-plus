@@ -4,6 +4,13 @@
  */
 import { useEffect, useLayoutEffect, useState } from 'preact/hooks';
 import { Icone } from '../composants';
+import { Boosters } from './boosters';
+import type { Note } from '../types';
+
+const EXEMPLES: Note[] = [
+  { semestre: 'Exemple', module: 'Maths', cours: 'Algèbre linéaire', epreuve: 'Écrit 1', coefficient: 1, note: 16.5, motifAbsence: '' },
+  { semestre: 'Exemple', module: 'Info', cours: 'Développement logiciel', epreuve: 'Projet', coefficient: 2, note: 13, motifAbsence: '' },
+];
 
 const CLE = 'campus-plus:visite-vue';
 
@@ -23,11 +30,14 @@ interface Etape {
   cible: string[];
   titre: string;
   texte: string;
+  /** Exemple à essayer pendant la visite. */
+  exemple?: 'booster';
 }
 
 const ETAPES: Etape[] = [
   { onglet: 'aujourdhui', cible: ['.une'], titre: 'Ton prochain cours', texte: 'En grand, avec sa salle (même quand elle dépend de ton nom). Touche-le pour le détail ou pour y ajouter un devoir.' },
   { onglet: 'aujourdhui', cible: ['[aria-label="Examens à venir"]', '[aria-label="À faire"]'], titre: 'Examens et devoirs', texte: 'Les partiels dès qu’ils sont publiés sur MyCPE, puis tes devoirs e-campus et tes tâches. Coche quand c’est fait.' },
+  { onglet: 'aujourdhui', cible: ['.tuiles'], titre: 'Tes widgets', texte: 'Notes, nouveaux fichiers ou alertes, au choix dans les réglages. Avec « Notes en boosters », chaque nouvelle note s’ouvre comme un paquet de cartes.', exemple: 'booster' },
   { onglet: 'planning', cible: ['.segments'], titre: 'Planning', texte: 'Jour, semaine ou mois. Les flèches font avancer ou reculer, et « Aujourd’hui » te ramène à la date du jour.' },
   { onglet: 'cours', cible: ['.bloc .carte.liste', '.onglets button:nth-child(3)'], titre: 'Cours', texte: 'Tous tes fichiers e-campus. Ouvre un cours : ils sont rangés par type (cours, TD, TP, annales), et tu peux y créer un devoir.' },
   { onglet: 'alertes', cible: ['.segments button:first-child', '.segments'], titre: 'Boîte : les alertes', texte: 'Tout ce qui change : salle, horaire, nouvelle note, nouveau fichier, examen. Les mêmes que les notifications.' },
@@ -77,6 +87,7 @@ function useCible(etape: Etape | null, cle: number): Cadre | null {
 export function Visite({ surFin, surAller }: { surFin: () => void; surAller: (o: OngletVisite) => void }) {
   // -1 : mot de bienvenue ; ensuite, index de l'étape.
   const [i, setI] = useState(-1);
+  const [exemple, setExemple] = useState(false);
   const etape = i >= 0 ? ETAPES[i] : null;
   const cadre = useCible(etape, i);
   const finir = () => { marquerVue(); surAller('aujourdhui'); surFin(); };
@@ -116,13 +127,15 @@ export function Visite({ surFin, surAller }: { surFin: () => void; surAller: (o:
       {cadre ? (
         <div class="visite-trou" style={{ top: `${cadre.haut - marge}px`, left: `${cadre.gauche - marge}px`, width: `${cadre.largeur + 2 * marge}px`, height: `${cadre.hauteur + 2 * marge}px` }} />
       ) : <div class="visite-fond" />}
+      {exemple && <Boosters demo notes={EXEMPLES} surFin={() => setExemple(false)} />}
       <div class="visite-bulle" style={styleBulle} key={i}>
         <p class="visite-etape">{i + 1} / {ETAPES.length}</p>
         <h2 id="visite-titre">{etape.titre}</h2>
         <p id="visite-texte">{etape.texte}</p>
         <div class="visite-actions">
           {!derniere && <button type="button" class="lien-bouton" onClick={finir}>Passer</button>}
-          {i > 0 && <button type="button" class="bouton secondaire petit" onClick={() => setI(i - 1)}>Retour</button>}
+          {etape.exemple === 'booster' && <button type="button" class="bouton secondaire petit" onClick={() => setExemple(true)}>Voir un exemple</button>}
+          {i > 0 && !etape.exemple && <button type="button" class="bouton secondaire petit" onClick={() => setI(i - 1)}>Retour</button>}
           <button type="button" class="bouton petit" onClick={derniere ? finir : () => setI(i + 1)}>{derniere ? 'Terminer' : 'Suivant'}</button>
         </div>
       </div>

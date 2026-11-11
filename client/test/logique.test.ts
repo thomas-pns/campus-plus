@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ajouterJours, dans, grilleMois, moisDecale, heureDe, ilYA, initialesDe, jourDe, jourEnToutesLettres, jourParis, lundiDe, minutesDe, numeroSemaine, prenomDe, rangDansSemaine } from '../src/dates';
 import { aLaUne, disposer, duJour, prochainJourAvecCours, salleDe, salleDeduite, semaineDe } from '../src/planning';
 import type { Evenement } from '../src/types';
+import { sechable, verdict } from '../src/branleur';
 
 const evt = (jour: string, debut: string, fin: string, plus: Partial<Evenement> = {}): Evenement => ({
   id: jour + debut, cle: jour + debut, debut: `${jour}T${debut}:00+01:00`, fin: `${jour}T${fin}:00+01:00`,
@@ -163,5 +164,25 @@ describe('matières', () => {
     expect(memeMatiere('Techniques et Langages du WEB', 'Techniques et Langages du Web (S5)')).toBe(true);
     expect(memeMatiere('Algèbre linéaire', 'Analyse numérique (S5)')).toBe(false);
     expect(memeMatiere('', 'Analyse')).toBe(false);
+  });
+});
+
+describe('mode branleur', () => {
+  const ev = (debut: string, fin: string, categorie: string, type: string, cle = debut) => ({ cle, debut: `2026-11-12T${debut}:00+01:00`, fin: `2026-11-12T${fin}:00+01:00`, categorie, type, matiere: 'Algèbre', salles: [], intervenants: [], groupe: '', remarques: [] }) as unknown as Evenement;
+  it('ne propose jamais de sécher un TD, un TP, une langue ou un examen', () => {
+    expect(sechable(ev('08:00', '10:00', 'td', 'TD'))).toBe(false);
+    expect(sechable(ev('08:00', '10:00', 'cours', 'TP'))).toBe(false);
+    expect(sechable(ev('08:00', '10:00', 'examen', 'Examen'))).toBe(false);
+    expect(sechable(ev('08:00', '10:00', 'langues', 'Cours'))).toBe(false);
+    expect(sechable(ev('08:00', '10:00', 'cours', 'Cours'))).toBe(true);
+  });
+  it('trouve la bonne excuse', () => {
+    const matin = ev('08:00', '10:00', 'cours', 'CM');
+    const td = ev('10:15', '12:15', 'td', 'TD');
+    const soir = ev('15:45', '17:45', 'fhes', 'CM');
+    const jour = [matin, td, soir];
+    expect(verdict(matin, jour)?.message).toMatch(/grasse mat/);
+    expect(verdict(soir, jour)).toEqual({ message: 'Tu peux finir à 12:15 : la sortie est à gauche 🚪', finPossible: '12:15' });
+    expect(verdict(td, jour)).toBeNull();
   });
 });

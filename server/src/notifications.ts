@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import type { Coffre } from './coffre.js';
 import type { Depot } from './depot.js';
 import type { Alerte, TypeAlerte } from './alertes.js';
+import type { Evenement } from './sources/planning.js';
 
 export interface Abonnement {
   endpoint: string;
@@ -21,7 +22,11 @@ export const TYPES_PAR_DEFAUT: Types = { salle: true, horaire: true, ajoute: tru
 interface Reglages {
   abonnements: Abonnement[];
   types: Types;
+  /** Rappel avant chaque créneau, en minutes (0 : pas de rappel). */
+  rappel: number;
 }
+
+export const RAPPELS_POSSIBLES = [0, 5, 10, 15, 30, 60];
 
 export interface Message {
   titre: string;
@@ -77,7 +82,7 @@ export class Notifications {
 
   async reglages(id: string): Promise<Reglages> {
     const r = await this.depot.lire<Partial<Reglages>>(id, 'notifications');
-    return { abonnements: r?.abonnements ?? [], types: { ...TYPES_PAR_DEFAUT, ...r?.types } };
+    return { abonnements: r?.abonnements ?? [], types: { ...TYPES_PAR_DEFAUT, ...r?.types }, rappel: r?.rappel ?? 0 };
   }
 
   async abonner(id: string, a: Abonnement): Promise<void> {
@@ -98,6 +103,13 @@ export class Notifications {
     for (const t of Object.keys(TYPES_PAR_DEFAUT) as TypeAlerte[]) if (typeof types[t] === 'boolean') nouveaux[t] = types[t]!;
     await this.depot.ecrire(id, 'notifications', { ...r, types: nouveaux });
     return nouveaux;
+  }
+
+  async changerRappel(id: string, minutes: number): Promise<number> {
+    const r = await this.reglages(id);
+    const rappel = RAPPELS_POSSIBLES.includes(minutes) ? minutes : 0;
+    await this.depot.ecrire(id, 'notifications', { ...r, rappel });
+    return rappel;
   }
 
   /** Envoie à tous les appareils de l'élève ; oublie les abonnements que le service push déclare morts. */
@@ -128,5 +140,61 @@ export class Notifications {
   async alertes(id: string, alertes: Alerte[]): Promise<void> {
     const { types } = await this.reglages(id);
     await this.envoyer(id, messagesPour(alertes.filter((a) => types[a.type])));
+  }
+}
+
+/** Créneaux à rappeler maintenant : ceux qui commencent dans `minutes`, à la minute près. */
+export function creneauxARappeler(planning: Evenement[], maintenant: number, minutes: number): Evenement[] {
+  const de = maintenant + (minutes - 1) * 60_000;
+  const a = maintenant + minutes * 60_000;
+  const vus = new Set<string>();
+  return planning.filter((e) => {
+    const t = Date.parse(e.debut);
+    if (t <= de || t > a || !e.matiere || vus.has(e.cle)) return false;
+    vus.add(e.cle);
+    return true;
+  });
+}
+
+export function messageRappel(e: Evenement, minutes: number): Message {
+  const heure = (iso: string) => iso.slice(11, 16);
+  const quoi = e.type && e.type.trim() && e.type.trim() !== e.matiere ? `${e.matiere} (${e.type.trim()})` : e.matiere;
+  return {
+    titre: `${minutes >= 60 ? 'Dans 1 h' : `Dans ${minutes} min`} : ${quoi}`,
+    corps: [e.salles.length ? `Salle ${e.salles.join(' / ')}` : null, `${heure(e.debut)} – ${heure(e.fin)}`].filter(Boolean).join(' · '),
+    tag: `rappel-${e.cle}`,
+  };
+}
+
+/**
+ * Rappels avant les cours : chaque minute, pour les élèves qui l'ont demandé, envoie un rappel pour les
+ * créneaux qui commencent bientôt. Le planning vient de la dernière synchro (déjà sur le serveur).
+ */
+export class RappelsCours {
+  private envoyes = new Map<string, number>();
+
+  constructor(private depot: Depot, private notifications: Notifications, private eleves: () => Promise<string[]>, private maintenant = () => Date.now()) {}
+
+  async tour(): Promise<number> {
+    const t = this.maintenant();
+    let total = 0;
+    for (const [cle, quand] of this.envoyes) if (t - quand > 2 * 3600_000) this.envoyes.delete(cle);
+    for (const id of await this.eleves()) {
+      try {
+        const r = await this.notifications.reglages(id);
+        if (!r.rappel || !r.abonnements.length) continue;
+        const planning = (await this.depot.lire<Evenement[]>(id, 'planning')) ?? [];
+        const aEnvoyer = creneauxARappeler(planning, t, r.rappel).filter((e) => !this.envoyes.has(`${id}|${e.cle}`));
+        for (const e of aEnvoyer) this.envoyes.set(`${id}|${e.cle}`, t);
+        if (aEnvoyer.length) total += await this.notifications.envoyer(id, aEnvoyer.map((e) => messageRappel(e, r.rappel)));
+      } catch { /* un élève en erreur ne bloque pas les autres */ }
+    }
+    return total;
+  }
+
+  demarrer(): () => void {
+    const minuteur = setInterval(() => void this.tour(), 60_000);
+    minuteur.unref?.();
+    return () => clearInterval(minuteur);
   }
 }

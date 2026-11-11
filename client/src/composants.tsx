@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import type { Evenement } from './types';
 import { heureDe, jourEnToutesLettres, jourDe, jourParis, libelleJour } from './dates';
 import { CATEGORIES, salleDe, salleDeduite, titreDe } from './planning';
+import { lirePreferences } from './preferences';
+import { sechable, verdict } from './branleur';
 
 /* ---------- Icônes (traits simples, dessinées pour l'appli) ---------- */
 
@@ -85,6 +87,7 @@ export function Segments<T extends string>({ options, valeur, surChoix, etiquett
 
 export function LigneEvenement({ e, passe, surOuvrir }: { e: Evenement; passe?: boolean; surOuvrir: (e: Evenement) => void }) {
   const cat = CATEGORIES[e.categorie];
+  const facultatif = lirePreferences().branleur && sechable(e);
   const sousTitre = [e.intervenants.join(', '), e.groupe].filter(Boolean).join(' · ');
   return (
     <button type="button" class={`ligne-evt ${passe ? 'passe' : ''}`} onClick={() => surOuvrir(e)}>
@@ -99,6 +102,7 @@ export function LigneEvenement({ e, passe, surOuvrir }: { e: Evenement; passe?: 
         </span>
         <span class="ligne-titre">{titreDe(e)}</span>
         {sousTitre && <span class="ligne-sous">{sousTitre}</span>}
+        {facultatif && <span class="ligne-facultatif">😴 Facultatif</span>}
       </span>
     </button>
   );
@@ -135,7 +139,8 @@ export function Avatar({ initiales, photo, grand }: { initiales: string; photo: 
 
 /* ---------- Fiche d'un créneau (panneau qui monte du bas) ---------- */
 
-export function FicheEvenement({ e, surFermer, surAjouterDevoir }: { e: Evenement; surFermer: () => void; surAjouterDevoir?: (e: Evenement) => void }) {
+export function FicheEvenement({ e, planning, surFermer, surAjouterDevoir }: { e: Evenement; planning?: Evenement[]; surFermer: () => void; surAjouterDevoir?: (e: Evenement) => void }) {
+  const v = lirePreferences().branleur && planning ? verdict(e, planning) : null;
   const cat = CATEGORIES[e.categorie];
   const fermer = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -165,6 +170,7 @@ export function FicheEvenement({ e, surFermer, surAjouterDevoir }: { e: Evenemen
           {e.intervenants.length > 0 && <li><Icone nom="personne" taille={20} /><span>{e.intervenants.join(', ')}</span></li>}
           {e.groupe && <li><Icone nom="groupe" taille={20} /><span>{e.groupe}</span></li>}
         </ul>
+        {v && <p class="branleur">{v.message}</p>}
         {e.remarques.length > 0 && (
           <div class="remarques">
             {e.remarques.map((r) => <p>{r}</p>)}

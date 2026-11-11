@@ -9,7 +9,8 @@ import { Comptes } from '../src/comptes.js';
 import { Depot } from '../src/depot.js';
 import { Synchro } from '../src/synchro.js';
 import { AurionClient } from '../src/sources/aurion.js';
-import { messagesPour, Notifications, type Abonnement, type Message } from '../src/notifications.js';
+import { creneauxARappeler, messageRappel, messagesPour, Notifications, type Abonnement, type Message } from '../src/notifications.js';
+import type { Evenement } from '../src/sources/planning.js';
 import type { Alerte } from '../src/alertes.js';
 import { FauxAurion } from './faux-aurion.js';
 import { CLE_TEST, donneesFausses } from './donnees.js';
@@ -78,7 +79,7 @@ describe('notifications de bout en bout (faux WebAurion, faux service push)', ()
 
   it('donne la clé publique et les réglages par défaut', async () => {
     expect((await req('GET', '/api/notifications')).json()).toEqual({
-      cle: 'cle-publique-de-test', appareils: 0,
+      cle: 'cle-publique-de-test', appareils: 0, rappel: 0,
       types: { salle: true, horaire: true, ajoute: true, supprime: true, note: true, fichier: true, devoir: true, mail: true, examen: true },
     });
   });
@@ -149,5 +150,17 @@ describe('clés VAPID', () => {
     } finally {
       await rm(dossier, { recursive: true, force: true });
     }
+  });
+});
+
+describe('rappels avant les cours', () => {
+  const creneau = (debut: string, cle = 'c1') => ({ cle, debut, fin: debut.replace('08:00', '10:00'), matiere: 'Algèbre linéaire', type: 'TD', categorie: 'td', salles: ['F008'], intervenants: [], groupe: '', remarques: [] }) as unknown as Evenement;
+  it('trouve les créneaux qui commencent dans le délai choisi, à la minute près', () => {
+    const e = creneau('2026-11-12T08:00:00+01:00');
+    const t = Date.parse('2026-11-12T07:50:00+01:00');
+    expect(creneauxARappeler([e, e], t, 10)).toHaveLength(1);
+    expect(creneauxARappeler([e], t - 60_000, 10)).toHaveLength(0);
+    expect(creneauxARappeler([e], t + 60_000, 10)).toHaveLength(0);
+    expect(messageRappel(e, 10)).toEqual({ titre: 'Dans 10 min : Algèbre linéaire (TD)', corps: 'Salle F008 · 08:00 – 10:00', tag: 'rappel-c1' });
   });
 });

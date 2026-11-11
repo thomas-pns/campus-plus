@@ -6,7 +6,7 @@ import { Comptes } from './comptes.js';
 import { Synchro } from './synchro.js';
 import { AurionClient } from './sources/aurion.js';
 import { creerApp } from './api.js';
-import { Notifications } from './notifications.js';
+import { Notifications, RappelsCours } from './notifications.js';
 import { SynchroCours } from './cours.js';
 import { Taches } from './taches.js';
 import { SynchroMails } from './mails.js';
@@ -20,6 +20,8 @@ const depot = new Depot(config.dossierDonnees, coffre);
 const comptes = new Comptes(depot, coffre);
 const fabriqueAurion = () => new AurionClient(config.aurionBase);
 const notifications = await Notifications.demarrer(depot, coffre, config.dossierDonnees);
+// Rappels avant les cours, pour les élèves qui les ont demandés.
+new RappelsCours(depot, notifications, () => comptes.lister()).demarrer();
 const cours = new SynchroCours(depot, comptes, coffre, config.dossierDonnees, () => new MoodleClient(), {
   journal: (m) => console.log(`[cours] ${m}`),
   surNouvellesAlertes: (id, alertes) => notifications.alertes(id, alertes),

@@ -259,7 +259,7 @@ export function App() {
       </nav>
 
       {visite && <Visite surFin={() => setVisite(false)} surAller={(o) => { setPage(null); choisir(o); }} />}
-      {fiche && <FicheEvenement e={fiche} surFermer={fermerFiche} surAjouterDevoir={d.afaire && !horsLigne ? devoirDepuisCreneau : undefined} />}
+      {fiche && <FicheEvenement e={fiche} planning={d.planning} surFermer={fermerFiche} surAjouterDevoir={d.afaire && !horsLigne ? devoirDepuisCreneau : undefined} />}
       {brouillon && d.afaire && (
         <AjoutDevoir b={brouillon} surFermer={fermerBrouillon}
           surAjout={(t) => { changerAFaire({ ...d.afaire!, taches: [...d.afaire!.taches, t] }); setBrouillon(null); }} />

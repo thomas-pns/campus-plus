@@ -8,6 +8,9 @@ const ICONES: Record<Alerte['type'], [NomIcone, string]> = {
   note: ['note', 'violet'], fichier: ['fichier', 'bleu-fonce'], devoir: ['liste', 'sarcelle'], mail: ['mail', 'sarcelle'], examen: ['calendrier', 'rouge'],
 };
 
+const RAPPELS = [0, 5, 10, 15, 30, 60];
+const nomRappel = (m: number) => (m === 0 ? 'Aucun' : m === 60 ? '1 h avant' : `${m} min avant`);
+
 const LIBELLES: Record<Alerte['type'], string> = {
   salle: 'Changements de salle',
   horaire: "Changements d'horaire",
@@ -34,6 +37,7 @@ export function ReglagesNotifications({ horsLigne }: { horsLigne: boolean }) {
   const [etat, setEtat] = useState<api.EtatAppareil | null>(null);
   const [occupe, setOccupe] = useState(false);
   const [message, setMessage] = useState('');
+  const [choixRappel, setChoixRappel] = useState(false);
 
   useEffect(() => {
     if (horsLigne) return;
@@ -65,6 +69,18 @@ export function ReglagesNotifications({ horsLigne }: { horsLigne: boolean }) {
       setReglages((r) => (r ? { ...r, types } : r));
     } catch {
       setReglages((r) => (r ? { ...r, types: { ...r.types, [type]: !valeur } } : r));
+    }
+  };
+
+  const choisirRappel = async (minutes: number) => {
+    if (!reglages) return;
+    const avant = reglages.rappel;
+    setReglages({ ...reglages, rappel: minutes });
+    try {
+      const { rappel } = await api.changerRappel(minutes);
+      setReglages((r) => (r ? { ...r, rappel } : r));
+    } catch {
+      setReglages((r) => (r ? { ...r, rappel: avant } : r));
     }
   };
 
@@ -102,6 +118,21 @@ export function ReglagesNotifications({ horsLigne }: { horsLigne: boolean }) {
               <span class="rangee-libelle">Sur cet appareil</span>
               <Interrupteur actif={actives} libelle="Notifications sur cet appareil" desactive={occupe || !reglages || etat === null} surChange={(v) => void basculer(v)} />
             </div>
+            {actives && reglages && reglages.rappel !== undefined && (
+              <>
+                <button type="button" class="rangee" aria-expanded={choixRappel} onClick={() => setChoixRappel(!choixRappel)}>
+                  <span class="icone-rangee bleu"><Icone nom="horloge" taille={17} epaisseur={2.2} /></span>
+                  <span class="rangee-libelle">Rappel avant chaque cours</span>
+                  <span class="rangee-valeur">{nomRappel(reglages.rappel)}&nbsp;<Icone nom={choixRappel ? 'bas' : 'droite'} taille={14} epaisseur={2.4} /></span>
+                </button>
+                {choixRappel && RAPPELS.map((m) => (
+                  <button type="button" class="rangee sous-rangee" role="radio" aria-checked={reglages.rappel === m} onClick={() => void choisirRappel(m)}>
+                    <span class="rangee-libelle">{nomRappel(m)}</span>
+                    {reglages.rappel === m && <span class="rangee-valeur bleu"><Icone nom="coche" taille={18} epaisseur={2.6} /></span>}
+                  </button>
+                ))}
+              </>
+            )}
             {actives && reglages && (Object.keys(LIBELLES) as Alerte['type'][]).map((t) => (
               <div class="rangee">
                 <span class={`icone-rangee ${ICONES[t][1]}`}><Icone nom={ICONES[t][0]} taille={17} epaisseur={2.2} /></span>

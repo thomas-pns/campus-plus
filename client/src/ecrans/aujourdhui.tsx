@@ -4,6 +4,8 @@ import { ajouterJours, dans, heureDe, initialesDe, jourDe, jourEnToutesLettres, 
 import { aLaUne, CATEGORIES, duJour, examensAVenir, prochainJourAvecCours, salleDe, salleDeduite, titreDe } from '../planning';
 import { Avatar, Icone, LigneEvenement, LigneExamen, Vide } from '../composants';
 import { lirePreferences } from '../preferences';
+import { Boosters, cleNote, notesOuvertes } from './boosters';
+import { verdict } from '../branleur';
 import { fichiersVus } from '../api';
 import { fichiersDe, nomCourt } from '../cours';
 import { aVenir, lignes } from '../afaire';
@@ -33,7 +35,8 @@ export function Aujourdhui({ d, maintenant, surOuvrir, surReglages, surAller, su
   const derniereNote = [...d.notes].reverse().find((n) => n.note !== null);
   const alertesRecentes = d.alertes.filter((a) => maintenant - Date.parse(a.date) < SEPT_JOURS);
   const examens = examensAVenir(d.planning, maintenant);
-  const { cacherNote, accueilExamens, accueilAFaire, tuileGauche, accueilAlertes, photo } = lirePreferences();
+  const { cacherNote, accueilExamens, accueilAFaire, tuileGauche, tuileDroite, photo } = lirePreferences();
+  const [boosters, setBoosters] = useState<Note[] | null>(null);
   const urgents = d.afaire ? aVenir(lignes(d.afaire.echeances, d.afaire.taches, maintenant), maintenant) : [];
 
   return (
@@ -48,7 +51,7 @@ export function Aujourdhui({ d, maintenant, surOuvrir, surReglages, surAller, su
 
       <div class="accueil">
       <div class="accueil-col">
-      {une ? <Une e={une.evenement} enCours={une.enCours} jour={jour} maintenant={maintenant} surOuvrir={surOuvrir} /> : (
+      {une ? <Une e={une.evenement} enCours={une.enCours} jour={jour} maintenant={maintenant} surOuvrir={surOuvrir} conseil={lirePreferences().branleur ? verdict(une.evenement, d.planning)?.message : undefined} /> : (
         <section class="une une-vide">
           <h2>Rien de prévu</h2>
           <p>Aucun cours à venir dans ton planning.</p>
@@ -109,25 +112,23 @@ export function Aujourdhui({ d, maintenant, surOuvrir, surReglages, surAller, su
         </section>
       )}
 
-      {(tuileGauche !== 'aucune' || accueilAlertes) && <section class={`tuiles ${tuileGauche === 'aucune' || !accueilAlertes ? 'seule' : ''}`} aria-label="Nouveautés">
-        {tuileGauche === 'note' && <TuileNote note={derniereNote} surprise={cacherNote} nouvelle={d.alertes.some((a) => a.type === 'note' && maintenant - Date.parse(a.date) < SEPT_JOURS)}
-          surVoir={() => surAller('scolarite')} />}
-        {tuileGauche === 'fichiers' && <TuileFichiers d={d} surVoir={() => surAller('cours')} />}
-        {accueilAlertes && (
-        <button type="button" class="tuile" onClick={() => surAller('alertes')}>
-          <span class="tuile-titre">Alertes</span>
-          <span class={`tuile-valeur ${alertesRecentes.length ? 'bleu' : ''}`}>{alertesRecentes.length}</span>
-          <span class="tuile-texte">{alertesRecentes.length ? alertesRecentes[0].titre : 'Rien de neuf cette semaine'}</span>
-        </button>
-        )}
-      </section>}
+      {(tuileGauche !== 'aucune' || tuileDroite !== 'aucune') && (
+        <section class={`tuiles ${tuileGauche === 'aucune' || tuileDroite === 'aucune' ? 'seule' : ''}`} aria-label="Nouveautés">
+          {[tuileGauche, tuileDroite].filter((t) => t !== 'aucune').map((t) => (
+            t === 'note' ? <TuileNotes d={d} derniere={derniereNote} boosters={cacherNote} surVoir={() => surAller('scolarite')} surOuvrir={setBoosters} />
+              : t === 'fichiers' ? <TuileFichiers d={d} surVoir={() => surAller('cours')} />
+              : <TuileAlertes recentes={alertesRecentes} surVoir={() => surAller('alertes')} />
+          ))}
+        </section>
+      )}
+      {boosters && <Boosters notes={boosters} surFin={() => setBoosters(null)} />}
       </div>
       </div>
     </>
   );
 }
 
-function Une({ e, enCours, jour, maintenant, surOuvrir }: { e: Evenement; enCours: boolean; jour: string; maintenant: number; surOuvrir: (e: Evenement) => void }) {
+function Une({ e, enCours, jour, maintenant, surOuvrir, conseil }: { e: Evenement; enCours: boolean; jour: string; maintenant: number; surOuvrir: (e: Evenement) => void; conseil?: string }) {
   const cat = CATEGORIES[e.categorie];
   const autreJour = jourDe(e.debut) !== jour;
   const quand = [autreJour ? jourEnToutesLettres(jourDe(e.debut)) : null, `${heureDe(e.debut)} – ${heureDe(e.fin)}`].filter(Boolean).join(' · ');
@@ -140,6 +141,7 @@ function Une({ e, enCours, jour, maintenant, surOuvrir }: { e: Evenement; enCour
       </span>
       <span class="une-titre">{titreDe(e)}</span>
       <span class="une-sous">{[quand, e.intervenants.join(', ')].filter(Boolean).join(' · ')}</span>
+      {conseil && <span class="une-conseil">{conseil}</span>}
       <span class="une-cases">
         <span class="une-case">
           <small>{salleDeduite(e) ? 'Ta salle' : 'Salle'}</small>
@@ -153,38 +155,47 @@ function Une({ e, enCours, jour, maintenant, surOuvrir }: { e: Evenement; enCour
   );
 }
 
-const CLE_NOTE_VUE = 'campus-plus:note-decouverte';
-const cleNote = (n: Note) => `${n.cours}|${n.epreuve}|${n.note}`;
-
-/**
- * Tuile de la dernière note. En « surprise », une note pas encore découverte s'annonce sans sa
- * valeur ; un appui la révèle sur place, un second ouvre la Scolarité.
- */
-function TuileNote({ note, surprise, nouvelle, surVoir }: { note: Note | undefined; surprise: boolean; nouvelle: boolean; surVoir: () => void }) {
-  const [vue, setVue] = useState(() => {
-    try { return !!note && localStorage.getItem(CLE_NOTE_VUE) === cleNote(note); } catch { return false; }
-  });
-  const cachee = !!note && surprise && !vue;
-  const decouvrir = () => {
-    if (!note) return;
-    try { localStorage.setItem(CLE_NOTE_VUE, cleNote(note)); } catch { /* rien */ }
-    setVue(true);
-  };
+/** Notes : la dernière, ou en mode boosters, le nombre de nouvelles notes à ouvrir (sans leur valeur). */
+function TuileNotes({ d, derniere, boosters, surVoir, surOuvrir }: { d: Donnees; derniere: Note | undefined; boosters: boolean; surVoir: () => void; surOuvrir: (n: Note[]) => void }) {
+  if (boosters) {
+    const ouvertes = notesOuvertes(d.notes);
+    const nouvelles = d.notes.filter((n) => n.note !== null && !ouvertes.has(cleNote(n)));
+    if (nouvelles.length) {
+      return (
+        <button type="button" class="tuile tuile-booster" onClick={() => surOuvrir(nouvelles)}>
+          <span class="tuile-titre">{nouvelles.length > 1 ? 'Nouvelles notes' : 'Nouvelle note'}</span>
+          <span class="tuile-valeur">{nouvelles.length}</span>
+          <span class="tuile-cachee">Ouvrir {nouvelles.length > 1 ? 'les boosters' : 'le booster'}</span>
+        </button>
+      );
+    }
+    return (
+      <button type="button" class="tuile" onClick={surVoir}>
+        <span class="tuile-titre">Notes</span>
+        <span class="tuile-valeur doux"><Icone nom="coche" taille={26} epaisseur={2.6} /></span>
+        <span class="tuile-texte">Aucune nouvelle note</span>
+      </button>
+    );
+  }
   return (
-    <button type="button" class={`tuile ${cachee ? 'tuile-surprise' : ''}`} onClick={cachee ? decouvrir : surVoir}
-      aria-label={cachee ? `${nouvelle ? 'Nouvelle note' : 'Dernière note'} en ${note!.cours} : toucher pour la découvrir` : undefined}>
-      <span class="tuile-titre">{nouvelle ? 'Nouvelle note' : 'Dernière note'}</span>
-      {!note ? <span class="tuile-texte">Aucune note publiée pour l'instant</span> : cachee ? (
+    <button type="button" class="tuile" onClick={surVoir}>
+      <span class="tuile-titre">Dernière note</span>
+      {derniere ? (
         <>
-          <span class="tuile-cachee"><Icone nom="note" taille={16} epaisseur={2.4} />Découvrir</span>
-          <span class="tuile-texte">{note.cours} · {note.epreuve}</span>
+          <span class="tuile-valeur">{String(derniere.note).replace('.', ',')}<small>/20</small></span>
+          <span class="tuile-texte">{derniere.cours} · {derniere.epreuve}</span>
         </>
-      ) : (
-        <>
-          <span class={`tuile-valeur ${surprise ? 'revele' : ''}`}>{String(note.note).replace('.', ',')}<small>/20</small></span>
-          <span class="tuile-texte">{note.cours} · {note.epreuve}</span>
-        </>
-      )}
+      ) : <span class="tuile-texte">Aucune note publiée pour l'instant</span>}
+    </button>
+  );
+}
+
+function TuileAlertes({ recentes, surVoir }: { recentes: Donnees['alertes']; surVoir: () => void }) {
+  return (
+    <button type="button" class="tuile" onClick={surVoir}>
+      <span class="tuile-titre">Alertes</span>
+      <span class={`tuile-valeur ${recentes.length ? 'bleu' : ''}`}>{recentes.length}</span>
+      <span class="tuile-texte">{recentes.length ? recentes[0].titre : 'Rien de neuf cette semaine'}</span>
     </button>
   );
 }

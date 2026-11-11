@@ -2,32 +2,38 @@
  * Préférences d'affichage. Gardées sur l'appareil pour s'afficher tout de suite, et sur le serveur
  * pour être les mêmes sur le téléphone, l'iPad et l'ordinateur. Le thème reste propre à chaque appareil.
  */
-export type TuileGauche = 'note' | 'fichiers' | 'aucune';
+export type Tuile = 'note' | 'fichiers' | 'alertes' | 'aucune';
+/** Ancien nom. */
+export type TuileGauche = Tuile;
 
 export interface Preferences {
-  /** « Note en surprise » : une nouvelle note s'annonce sans sa valeur, révélée d'un appui. */
+  /** Notes en boosters : la tuile ne montre pas la note, chaque nouvelle note s'ouvre comme un paquet. */
   cacherNote: boolean;
   accueilExamens: boolean;
   accueilAFaire: boolean;
-  /** Première tuile de l'accueil : dernière note, nouveaux fichiers, ou rien. */
-  tuileGauche: TuileGauche;
-  accueilAlertes: boolean;
+  /** Les deux tuiles en bas de l'accueil, comme des widgets. */
+  tuileGauche: Tuile;
+  tuileDroite: Tuile;
   /** Photo d'identité MyCPE à la place des initiales. */
   photo: boolean;
+  /** Mode branleur (caché) : débloqué, puis activé. */
+  branleurDebloque: boolean;
+  branleur: boolean;
 }
 
 const CLE = 'campus-plus:preferences';
-const DEFAUT: Preferences = { cacherNote: false, accueilExamens: true, accueilAFaire: true, tuileGauche: 'note', accueilAlertes: true, photo: false };
+const DEFAUT: Preferences = { cacherNote: false, accueilExamens: true, accueilAFaire: true, tuileGauche: 'note', tuileDroite: 'alertes', photo: false, branleurDebloque: false, branleur: false };
 
 function nettoyer(brut: Record<string, unknown>): Preferences {
   const p = { ...DEFAUT };
   for (const k of Object.keys(DEFAUT) as (keyof Preferences)[]) {
     const v = brut[k];
-    if (k === 'tuileGauche') { if (v === 'note' || v === 'fichiers' || v === 'aucune') p.tuileGauche = v; }
+    if (k === 'tuileGauche' || k === 'tuileDroite') { if (v === 'note' || v === 'fichiers' || v === 'alertes' || v === 'aucune') p[k] = v; }
     else if (typeof v === 'boolean') (p[k] as boolean) = v;
   }
   // Anciennes versions : un seul interrupteur pour la note et les alertes.
-  if (brut.accueilTuiles === false && brut.tuileGauche === undefined) { p.tuileGauche = 'aucune'; p.accueilAlertes = false; }
+  if (brut.accueilTuiles === false && brut.tuileGauche === undefined) { p.tuileGauche = 'aucune'; p.tuileDroite = 'aucune'; }
+  if (brut.accueilAlertes === false && brut.tuileDroite === undefined) p.tuileDroite = 'aucune';
   return p;
 }
 

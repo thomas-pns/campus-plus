@@ -134,8 +134,11 @@ export interface ReglagesNotifications {
   cle: string;
   types: Record<Alerte['type'], boolean>;
   appareils: number;
+  /** Rappel avant chaque créneau, en minutes (0 : aucun). Absent sur un serveur plus ancien. */
+  rappel?: number;
 }
 
+export const changerRappel = (minutes: number) => appel<{ rappel: number }>('PUT', '/api/notifications/rappel', { minutes });
 export const lireNotifications = () => appel<ReglagesNotifications>('GET', '/api/notifications');
 export const changerTypes = (types: Partial<Record<Alerte['type'], boolean>>) =>
   appel<{ types: ReglagesNotifications['types'] }>('PUT', '/api/notifications/types', types);

@@ -17,7 +17,7 @@ import type { SynchroCours } from './cours.js';
 import type { Taches } from './taches.js';
 import type { SynchroMails } from './mails.js';
 import { ErreurOneDrive, type SynchroOneDrive } from './onedrive.js';
-import { abonnementValide, TYPES_PAR_DEFAUT, type Notifications } from './notifications.js';
+import { abonnementValide, RAPPELS_POSSIBLES, TYPES_PAR_DEFAUT, type Notifications } from './notifications.js';
 
 const COOKIE = 'cp_session';
 const DUREE_COOKIE_S = 60 * 24 * 3600;
@@ -398,7 +398,7 @@ export async function creerApp(s: Services): Promise<FastifyInstance> {
 
     app.get('/api/notifications', { onRequest: exigerSession }, async (req) => {
       const r = await n.reglages(req.compte!.id);
-      return { cle: n.clePublique, types: r.types, appareils: r.abonnements.length };
+      return { cle: n.clePublique, types: r.types, appareils: r.abonnements.length, rappel: r.rappel };
     });
 
     app.post('/api/notifications/abonnement', {
@@ -422,6 +422,11 @@ export async function creerApp(s: Services): Promise<FastifyInstance> {
     app.put('/api/notifications/types', { onRequest: exigerSession, schema: { body: typesSchema } }, async (req) => ({
       types: await n.changerTypes(req.compte!.id, req.body as Record<string, boolean>),
     }));
+
+    app.put('/api/notifications/rappel', {
+      onRequest: exigerSession,
+      schema: { body: { type: 'object', required: ['minutes'], additionalProperties: false, properties: { minutes: { type: 'integer', enum: RAPPELS_POSSIBLES } } } },
+    }, async (req) => ({ rappel: await n.changerRappel(req.compte!.id, (req.body as { minutes: number }).minutes) }));
 
     /** Notification d'essai, pour vérifier que tout marche sur l'appareil. */
     app.post('/api/notifications/essai', { onRequest: exigerSession }, async (req) => ({
