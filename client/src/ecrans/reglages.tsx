@@ -1,7 +1,8 @@
 import { useState } from 'preact/hooks';
 import type { Donnees } from '../types';
 import { ilYA, initialesDe } from '../dates';
-import { Icone } from '../composants';
+import { Icone, Segments } from '../composants';
+import { choisirTheme, lireTheme, type Theme } from '../theme';
 import { ReglagesNotifications } from './notifications';
 
 interface Props {
@@ -17,6 +18,7 @@ interface Props {
 export function Reglages({ d, maintenant, horsLigne, surRetour, surActualiser, surDeconnexion, surSuppression }: Props) {
   const [occupe, setOccupe] = useState<'' | 'actualiser' | 'deconnexion' | 'suppression'>('');
   const [confirmer, setConfirmer] = useState(false);
+  const [theme, setTheme] = useState<Theme>(lireTheme);
   const lancer = (quoi: typeof occupe, action: () => Promise<void>) => {
     if (occupe) return;
     setOccupe(quoi);
@@ -84,6 +86,13 @@ export function Reglages({ d, maintenant, horsLigne, surRetour, surActualiser, s
           </div>
         )}
         <p class="petit-texte">Ton mot de passe CPE est gardé chiffré sur le serveur : il lui sert à récupérer ton planning et tes notes à ta place.</p>
+      </section>
+
+      <section class="bloc">
+        <h2 class="titre-groupe">Apparence</h2>
+        <Segments options={[{ id: 'auto', nom: 'Auto' }, { id: 'clair', nom: 'Clair' }, { id: 'sombre', nom: 'Sombre' }] as const}
+          valeur={theme} etiquette="Thème" surChoix={(t) => { setTheme(t); choisirTheme(t); }} />
+        <p class="petit-texte">« Auto » suit le réglage de ton téléphone.</p>
       </section>
 
       <section class="bloc">
