@@ -47,6 +47,17 @@ describe('serveur Campus+ de bout en bout (faux WebAurion)', () => {
   const ouvrir = async () => cookieDe(await connexion());
   const get = (url: string, cookies?: Record<string, string>) => app.inject({ method: 'GET', url, cookies });
 
+  it('garde les préférences d’affichage de l’élève, pour tous ses appareils', async () => {
+    const cookies = await ouvrir();
+    const put = (payload: unknown) => app.inject({ method: 'PUT', url: '/api/preferences', cookies, payload: payload as object });
+    expect((await get('/api/preferences', cookies)).json()).toEqual({ preferences: {} });
+    await put({ photo: true, tuileGauche: 'fichiers' });
+    await put({ photo: false });
+    expect((await get('/api/preferences', cookies)).json().preferences).toEqual({ photo: false, tuileGauche: 'fichiers' });
+    expect((await put({ x: { y: 1 } })).statusCode).toBe(400);
+    expect((await get('/api/preferences')).statusCode).toBe(401);
+  });
+
   it('répond à la sonde de santé sans session', async () => {
     expect((await get('/api/sante')).json()).toEqual({ ok: true });
   });
@@ -267,3 +278,4 @@ describe('fichiers de l’appli et clé de chiffrement', () => {
     }
   });
 });
+

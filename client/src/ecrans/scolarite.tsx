@@ -1,9 +1,18 @@
 import { useState } from 'preact/hooks';
 import type { Donnees, Note } from '../types';
-import { Entete, Segments, Vide } from '../composants';
+import { Entete, Icone, Segments, Vide, type NomIcone } from '../composants';
 
-const RUBRIQUES = [{ id: 'notes', nom: 'Notes' }, { id: 'absences', nom: 'Absences' }] as const;
+const RUBRIQUES = [{ id: 'notes', nom: 'Notes' }, { id: 'absences', nom: 'Absences' }, { id: 'liens', nom: 'Liens' }] as const;
 type Rubrique = (typeof RUBRIQUES)[number]['id'];
+
+/** Sites de l'école utiles mais qu'on n'intègre pas dans l'appli (connexion propre à chaque site). */
+const LIENS: { nom: string; texte: string; adresse: string; icone: NomIcone; couleur: string }[] = [
+  { nom: 'MyCPE', texte: 'Certificats de scolarité, bulletins, justificatifs d’absence', adresse: 'https://mycpe.cpe.fr/', icone: 'diplome', couleur: 'bleu' },
+  { nom: 'e-campus', texte: 'Cours, dépôts de devoirs, forums', adresse: 'https://e-campus.cpe.fr/', icone: 'livre', couleur: 'sarcelle' },
+  { nom: 'PARTAGE', texte: 'Messagerie de l’école', adresse: 'https://partage.cpe.fr/', icone: 'mail', couleur: 'bleu-fonce' },
+  { nom: 'FileSender', texte: 'Envoyer de gros fichiers (connexion CPE)', adresse: 'https://filesender.renater.fr/', icone: 'partager', couleur: 'violet' },
+  { nom: 'Support informatique', texte: 'Compte, mot de passe, Wi-Fi', adresse: 'https://support.cpe.fr/', icone: 'serveur', couleur: 'gris' },
+];
 
 const fr = (n: number) => String(n).replace('.', ',');
 
@@ -37,7 +46,20 @@ export function Scolarite({ d }: { d: Donnees }) {
         </div>
       </section>
 
-      {rubrique === 'notes' ? (
+      {rubrique === 'liens' ? (
+        <section class="bloc">
+          <div class="carte liste">
+            {LIENS.map((l) => (
+              <a class="rangee" href={l.adresse} target="_blank" rel="noopener noreferrer">
+                <span class={`icone-rangee ${l.couleur}`}><Icone nom={l.icone} taille={17} epaisseur={2.2} /></span>
+                <span class="rangee-texte"><strong>{l.nom}</strong><span>{l.texte}</span></span>
+                <span class="rangee-valeur"><Icone nom="droite" taille={14} epaisseur={2.4} /></span>
+              </a>
+            ))}
+          </div>
+          <p class="petit-texte">Ces sites s’ouvrent dans le navigateur, avec leur propre connexion.</p>
+        </section>
+      ) : rubrique === 'notes' ? (
         d.notes.length ? semestres.map(([semestre, notes]) => (
           <div>
             {semestres.length > 1 && <h2 class="titre-bloc semestre">{semestre}</h2>}

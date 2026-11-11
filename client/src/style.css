@@ -116,6 +116,7 @@ h1 { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.
 
 /* ---------- Tuiles ---------- */
 .tuiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.tuiles.seule { grid-template-columns: minmax(0, 1fr); }
 .tuile { background: var(--carte); border-radius: 22px; padding: 16px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .tuile.pleine { background: var(--cpe); color: #fff; }
 .tuile-titre { font-size: 12px; font-weight: 700; color: var(--doux); text-transform: uppercase; letter-spacing: .03em; }
@@ -435,7 +436,7 @@ a.bouton { text-decoration: none; }
 .lecteur-bouton:disabled { opacity: .35; }
 .lecteur-zoom { display: flex; }
 .lecteur-zoom .lecteur-bouton { font-size: 24px; font-weight: 500; }
-.lecteur-corps { flex: 1; min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 12px 10px calc(16px + var(--bas, env(safe-area-inset-bottom))); }
+.lecteur-corps { touch-action: pan-x pan-y; flex: 1; min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 12px 10px calc(16px + var(--bas, env(safe-area-inset-bottom))); }
 .pdf-pages { display: flex; flex-direction: column; gap: 10px; margin: 0 auto; max-width: none; }
 .lecteur-corps > .pdf-pages[style*="width: 100%"] { max-width: 900px; }
 .pdf-page { width: 100%; background: #fff; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,.18); overflow: hidden; }
@@ -488,3 +489,5 @@ a.bouton { text-decoration: none; }
 .tuile-valeur.revele { animation: revele .35s cubic-bezier(.2,.85,.25,1); }
 @keyframes revele { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .tuile-valeur.revele { animation: none; } }
+.lecteur-page { position: absolute; left: 50%; bottom: calc(18px + var(--bas)); transform: translateX(-50%); padding: 6px 12px; border-radius: 999px; background: rgba(11,18,32,.72); color: #fff; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; pointer-events: none; }
+.pdf-pages { will-change: transform; }

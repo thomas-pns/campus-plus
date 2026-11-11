@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from 'preact/hooks';
 import type { Donnees, Evenement } from './types';
 import * as api from './api';
+import { synchroniserPreferences } from './preferences';
 import { Defilement, FicheEvenement, Icone, type NomIcone } from './composants';
 import { Aujourdhui } from './ecrans/aujourdhui';
 import { Planning } from './ecrans/planning';
@@ -71,7 +72,7 @@ export function App() {
 
   const recharger = useCallback(async () => {
     try {
-      const d = await api.chargerTout();
+      const [d] = await Promise.all([api.chargerTout(), synchroniserPreferences()]);
       api.ecrireCopie(d);
       setDonnees(d);
       setHorsLigne(false);

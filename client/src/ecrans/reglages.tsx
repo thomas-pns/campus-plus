@@ -5,7 +5,7 @@ import { ilYA, initialesDe } from '../dates';
 import { Avatar, Icone, type NomIcone } from '../composants';
 import { choisirTheme, lireTheme, type Theme } from '../theme';
 import { Interrupteur, ReglagesNotifications } from './notifications';
-import { changerPreferences, lirePreferences, type Preferences } from '../preferences';
+import { changerPreferences, lirePreferences, type Preferences, type TuileGauche } from '../preferences';
 import { ReglagesOneDrive } from './onedrive';
 
 interface Props {
@@ -37,6 +37,12 @@ function Ligne({ icone, couleur, libelle, valeur, chevron, rouge, surClic, child
   return surClic ? <button type="button" class="rangee" onClick={surClic}>{contenu}</button> : <div class="rangee">{contenu}</div>;
 }
 
+const TUILES: { id: TuileGauche; nom: string }[] = [
+  { id: 'note', nom: 'Dernière note' },
+  { id: 'fichiers', nom: 'Nouveaux fichiers' },
+  { id: 'aucune', nom: 'Aucune' },
+];
+
 const THEMES: { id: Theme; nom: string; icone: NomIcone }[] = [
   { id: 'auto', nom: 'Automatique', icone: 'actualiser' },
   { id: 'clair', nom: 'Clair', icone: 'soleil' },
@@ -48,13 +54,14 @@ export function Reglages({ d, maintenant, horsLigne, surRetour, surActualiser, s
   const [confirmer, setConfirmer] = useState(false);
   const [theme, setTheme] = useState<Theme>(lireTheme);
   const [choixTheme, setChoixTheme] = useState(false);
+  const [choixTuile, setChoixTuile] = useState(false);
   const [prefs, setPrefs] = useState(lirePreferences);
   const lancer = (quoi: typeof occupe, action: () => Promise<void>) => {
     if (occupe) return;
     setOccupe(quoi);
     void action().finally(() => setOccupe(''));
   };
-  const pref = (cle: keyof Preferences, libelle: string) => (
+  const pref = (cle: Exclude<keyof Preferences, 'tuileGauche'>, libelle: string) => (
     <Interrupteur actif={prefs[cle]} libelle={libelle} surChange={(v) => setPrefs(changerPreferences({ [cle]: v }))} />
   );
   const { etat } = d.moi;
@@ -115,12 +122,21 @@ export function Reglages({ d, maintenant, horsLigne, surRetour, surActualiser, s
         <div class="carte liste">
           <Ligne icone="calendrier" couleur="rouge" libelle="Examens à venir">{pref('accueilExamens', 'Afficher les examens à venir sur l’accueil')}</Ligne>
           <Ligne icone="liste" couleur="sarcelle" libelle="À faire">{pref('accueilAFaire', 'Afficher « À faire » sur l’accueil')}</Ligne>
-          <Ligne icone="note" couleur="violet" libelle="Dernière note et alertes">{pref('accueilTuiles', 'Afficher la dernière note et les alertes sur l’accueil')}</Ligne>
-          {prefs.accueilTuiles && (
+          <Ligne icone="note" couleur="violet" libelle="Première tuile" valeur={TUILES.find((t) => t.id === prefs.tuileGauche)!.nom} surClic={() => setChoixTuile(!choixTuile)}>
+            <span class="rangee-valeur"><Icone nom={choixTuile ? 'bas' : 'droite'} taille={14} epaisseur={2.4} /></span>
+          </Ligne>
+          {choixTuile && TUILES.map((t) => (
+            <button type="button" class="rangee sous-rangee" role="radio" aria-checked={prefs.tuileGauche === t.id} onClick={() => setPrefs(changerPreferences({ tuileGauche: t.id }))}>
+              <span class="rangee-libelle">{t.nom}</span>
+              {prefs.tuileGauche === t.id && <span class="rangee-valeur bleu"><Icone nom="coche" taille={18} epaisseur={2.6} /></span>}
+            </button>
+          ))}
+          {prefs.tuileGauche === 'note' && (
             <Ligne icone="note" couleur="gris" libelle="Note en surprise">{pref('cacherNote', 'Note en surprise')}</Ligne>
           )}
+          <Ligne icone="boite" couleur="bleu" libelle="Tuile des alertes">{pref('accueilAlertes', 'Afficher la tuile des alertes sur l’accueil')}</Ligne>
         </div>
-        <p class="petit-texte">{prefs.cacherNote && prefs.accueilTuiles ? 'Une nouvelle note s’annonce sans sa valeur : touche la tuile pour la découvrir.' : 'Choisis ce que l’accueil montre. Ces choix valent pour cet appareil.'}</p>
+        <p class="petit-texte">{prefs.tuileGauche === 'note' && prefs.cacherNote ? 'Une nouvelle note s’annonce sans sa valeur : touche la tuile pour la découvrir.' : 'Choisis ce que l’accueil montre. Ces choix te suivent sur tous tes appareils.'}</p>
       </section>
 
       <section class="bloc">

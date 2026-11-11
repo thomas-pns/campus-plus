@@ -3,7 +3,7 @@
  * (diapos, Word…) les boutons pour les ouvrir dans une autre appli. Toujours avec un bouton « Fermer » :
  * sur iPhone, une appli installée n'a pas de bouton retour, et ouvrir le fichier directement y coinçait l'élève.
  */
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { createPortal } from 'preact/compat';
 import type { Fichier } from '../types';
 import { Icone } from '../composants';
@@ -65,6 +65,83 @@ export function enregistrer(f: Fichier): void {
   a.remove();
 }
 
+const ZOOM_MIN = 1;
+const ZOOM_MAX = 4;
+const borner = (z: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(z * 100) / 100));
+
+/**
+ * Zoom à deux doigts dans le lecteur, sans zoomer toute l'appli : pendant le geste, les pages sont
+ * agrandies à l'image (rapide) ; au lâcher, elles sont redessinées nettes à la bonne taille et le point
+ * entre les doigts reste en place.
+ */
+function usePincement(ref: { current: HTMLDivElement | null }, actif: boolean, zoom: number, setZoom: (z: number) => void) {
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
+  const ancre = useRef<{ x: number; y: number; z: number } | null>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !actif) return;
+    let depart: { d: number; x: number; y: number } | null = null;
+    let echelle = 1;
+    const pages = () => el.querySelector<HTMLElement>('.pdf-pages');
+    const distance = (t: TouchList) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    const debut = (ev: TouchEvent) => {
+      if (ev.touches.length !== 2) return;
+      const r = el.getBoundingClientRect();
+      depart = { d: distance(ev.touches), x: (ev.touches[0].clientX + ev.touches[1].clientX) / 2 - r.left, y: (ev.touches[0].clientY + ev.touches[1].clientY) / 2 - r.top };
+      echelle = 1;
+    };
+    const bouge = (ev: TouchEvent) => {
+      if (!depart || ev.touches.length !== 2) return;
+      ev.preventDefault();
+      echelle = borner(zoomRef.current * (distance(ev.touches) / depart.d)) / zoomRef.current;
+      const p = pages();
+      if (p) {
+        p.style.transformOrigin = `${el.scrollLeft + depart.x}px ${el.scrollTop + depart.y}px`;
+        p.style.transform = `scale(${echelle})`;
+      }
+    };
+    const fin = () => {
+      if (!depart) return;
+      const p = pages();
+      if (p) { p.style.transform = ''; p.style.transformOrigin = ''; }
+      const nouveau = borner(zoomRef.current * echelle);
+      if (nouveau !== zoomRef.current) {
+        // Point du document sous les doigts, à remettre au même endroit après le nouveau rendu.
+        ancre.current = { x: (el.scrollLeft + depart.x) * (nouveau / zoomRef.current) - depart.x, y: (el.scrollTop + depart.y) * (nouveau / zoomRef.current) - depart.y, z: nouveau };
+        setZoom(nouveau);
+      }
+      depart = null;
+    };
+    // Safari : empêche le zoom de toute la page pendant le geste.
+    const geste = (ev: Event) => ev.preventDefault();
+    el.addEventListener('touchstart', debut, { passive: true });
+    el.addEventListener('touchmove', bouge, { passive: false });
+    el.addEventListener('touchend', fin);
+    el.addEventListener('touchcancel', fin);
+    el.addEventListener('gesturestart', geste);
+    el.addEventListener('gesturechange', geste);
+    return () => {
+      el.removeEventListener('touchstart', debut);
+      el.removeEventListener('touchmove', bouge);
+      el.removeEventListener('touchend', fin);
+      el.removeEventListener('touchcancel', fin);
+      el.removeEventListener('gesturestart', geste);
+      el.removeEventListener('gesturechange', geste);
+    };
+  }, [actif]);
+
+  useLayoutEffect(() => {
+    const a = ancre.current;
+    const el = ref.current;
+    if (!a || !el || a.z !== zoom) return;
+    el.scrollLeft = a.x;
+    el.scrollTop = a.y;
+    ancre.current = null;
+  }, [zoom]);
+}
+
 const estPdf = (f: Fichier) => f.type === 'application/pdf' || /\.pdf$/i.test(f.nom);
 const estImage = (f: Fichier) => /^image\/(png|jpe?g|gif|webp)$/.test(f.type) || /\.(png|jpe?g|gif|webp)$/i.test(f.nom);
 
@@ -78,6 +155,9 @@ export function Lecteur({ f, surFermer }: { f: Fichier; surFermer: () => void })
   }, []);
   const ios = surIOS();
   const pdf = estPdf(f);
+  const corps = useRef<HTMLDivElement>(null);
+  const [page, setPage] = useState<{ n: number; total: number } | null>(null);
+  usePincement(corps, pdf, zoom, setZoom);
 
   return createPortal(
     <div class="lecteur" role="dialog" aria-modal="true" aria-label={f.nom}>
@@ -86,8 +166,8 @@ export function Lecteur({ f, surFermer }: { f: Fichier; surFermer: () => void })
         <span class="lecteur-titre">{f.nom}</span>
         {pdf && (
           <span class="lecteur-zoom">
-            <button type="button" class="lecteur-bouton" aria-label="Dézoomer" disabled={zoom <= 1} onClick={() => setZoom(Math.max(1, zoom - 0.5))}>−</button>
-            <button type="button" class="lecteur-bouton" aria-label="Zoomer" disabled={zoom >= 3} onClick={() => setZoom(Math.min(3, zoom + 0.5))}>+</button>
+            <button type="button" class="lecteur-bouton" aria-label="Dézoomer" disabled={zoom <= ZOOM_MIN} onClick={() => setZoom(borner(zoom / 1.5))}>−</button>
+            <button type="button" class="lecteur-bouton" aria-label="Zoomer" disabled={zoom >= ZOOM_MAX} onClick={() => setZoom(borner(zoom * 1.5))}>+</button>
           </span>
         )}
         {partageDisponible() ? (
@@ -100,8 +180,8 @@ export function Lecteur({ f, surFermer }: { f: Fichier; surFermer: () => void })
           </button>
         )}
       </header>
-      <div class="lecteur-corps">
-        {pdf ? <Pdf f={f} zoom={zoom} /> : estImage(f) ? (
+      <div class="lecteur-corps" ref={corps}>
+        {pdf ? <Pdf f={f} zoom={zoom} surPage={setPage} /> : estImage(f) ? (
           <img class="lecteur-image" src={adresseFichier(f)} alt={f.nom} />
         ) : (
           <div class="lecteur-autre">
@@ -118,6 +198,7 @@ export function Lecteur({ f, surFermer }: { f: Fichier; surFermer: () => void })
           </div>
         )}
       </div>
+      {pdf && page && page.total > 1 && <span class="lecteur-page" aria-live="polite">{page.n} / {page.total}</span>}
       {etat === 'erreur' && <p class="lecteur-erreur">Le fichier n’a pas pu être préparé : réessaie, ou vérifie ta connexion.</p>}
     </div>,
     document.getElementById('app') ?? document.body,
@@ -131,7 +212,7 @@ type PagePdf = {
 };
 
 /** PDF page par page : chaque page n'est dessinée que lorsqu'elle approche de l'écran. */
-function Pdf({ f, zoom }: { f: Fichier; zoom: number }) {
+function Pdf({ f, zoom, surPage }: { f: Fichier; zoom: number; surPage: (p: { n: number; total: number }) => void }) {
   const [doc, setDoc] = useState<DocPdf | null>(null);
   const [formats, setFormats] = useState<number[]>([]);
   const [erreur, setErreur] = useState(false);
@@ -162,12 +243,12 @@ function Pdf({ f, zoom }: { f: Fichier; zoom: number }) {
   if (!doc) return <div class="lecteur-message"><div class="progression"><span class="indetermine" /></div><p>Ouverture du PDF…</p></div>;
   return (
     <div class="pdf-pages" style={{ width: `${zoom * 100}%` }}>
-      {formats.map((r, i) => <PagePdfVue doc={doc} n={i + 1} ratio={r} zoom={zoom} />)}
+      {formats.map((r, i) => <PagePdfVue doc={doc} n={i + 1} ratio={r} zoom={zoom} surVue={() => surPage({ n: i + 1, total: formats.length })} />)}
     </div>
   );
 }
 
-function PagePdfVue({ doc, n, ratio, zoom }: { doc: DocPdf; n: number; ratio: number; zoom: number }) {
+function PagePdfVue({ doc, n, ratio, zoom, surVue }: { doc: DocPdf; n: number; ratio: number; zoom: number; surVue: () => void }) {
   const boite = useRef<HTMLDivElement>(null);
   const toile = useRef<HTMLCanvasElement>(null);
   const [visible, setVisible] = useState(false);
@@ -177,7 +258,10 @@ function PagePdfVue({ doc, n, ratio, zoom }: { doc: DocPdf; n: number; ratio: nu
     if (!el) return;
     const obs = new IntersectionObserver(([e]) => setVisible(e.isIntersecting), { rootMargin: '600px 0px' });
     obs.observe(el);
-    return () => obs.disconnect();
+    // Numéro de page affiché : celle qui occupe le milieu de l'écran.
+    const milieu = new IntersectionObserver(([e]) => { if (e.isIntersecting) surVue(); }, { rootMargin: '-50% 0px -50% 0px' });
+    milieu.observe(el);
+    return () => { obs.disconnect(); milieu.disconnect(); };
   }, []);
 
   useEffect(() => {
@@ -188,8 +272,10 @@ function PagePdfVue({ doc, n, ratio, zoom }: { doc: DocPdf; n: number; ratio: nu
       const page = await doc.getPage(n);
       if (annule || !toile.current || !boite.current) return;
       const largeur = boite.current.clientWidth;
-      const dpr = Math.min(window.devicePixelRatio || 1, 3);
-      const vue = page.getViewport({ scale: (largeur * dpr) / page.getViewport({ scale: 1 }).width });
+      const base = page.getViewport({ scale: 1 });
+      // Netteté de l'écran, sans dépasser ~8 millions de pixels par page (limite des iPhone).
+      const echelle = Math.min((largeur * Math.min(window.devicePixelRatio || 1, 3)) / base.width, Math.sqrt(8e6 / (base.width * base.height)));
+      const vue = page.getViewport({ scale: echelle });
       const c = toile.current;
       c.width = Math.floor(vue.width);
       c.height = Math.floor(vue.height);

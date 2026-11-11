@@ -4,6 +4,8 @@ import { ajouterJours, dans, heureDe, initialesDe, jourDe, jourEnToutesLettres, 
 import { aLaUne, CATEGORIES, duJour, examensAVenir, prochainJourAvecCours, salleDe, salleDeduite, titreDe } from '../planning';
 import { Avatar, Icone, LigneEvenement, LigneExamen, Vide } from '../composants';
 import { lirePreferences } from '../preferences';
+import { fichiersVus } from '../api';
+import { fichiersDe, nomCourt } from '../cours';
 import { aVenir, lignes } from '../afaire';
 import { LigneAFaire } from './devoirs';
 import type { Ligne } from '../afaire';
@@ -13,7 +15,7 @@ interface Props {
   maintenant: number;
   surOuvrir: (e: Evenement) => void;
   surReglages: () => void;
-  surAller: (onglet: 'alertes' | 'scolarite') => void;
+  surAller: (onglet: 'alertes' | 'scolarite' | 'cours') => void;
   surDevoirs: () => void;
   surCocher: (l: Ligne) => void;
 }
@@ -31,7 +33,7 @@ export function Aujourdhui({ d, maintenant, surOuvrir, surReglages, surAller, su
   const derniereNote = [...d.notes].reverse().find((n) => n.note !== null);
   const alertesRecentes = d.alertes.filter((a) => maintenant - Date.parse(a.date) < SEPT_JOURS);
   const examens = examensAVenir(d.planning, maintenant);
-  const { cacherNote, accueilExamens, accueilAFaire, accueilTuiles, photo } = lirePreferences();
+  const { cacherNote, accueilExamens, accueilAFaire, tuileGauche, accueilAlertes, photo } = lirePreferences();
   const urgents = d.afaire ? aVenir(lignes(d.afaire.echeances, d.afaire.taches, maintenant), maintenant) : [];
 
   return (
@@ -107,14 +109,17 @@ export function Aujourdhui({ d, maintenant, surOuvrir, surReglages, surAller, su
         </section>
       )}
 
-      {accueilTuiles && <section class="tuiles" aria-label="Nouveautés">
-        <TuileNote note={derniereNote} surprise={cacherNote} nouvelle={d.alertes.some((a) => a.type === 'note' && maintenant - Date.parse(a.date) < SEPT_JOURS)}
-          surVoir={() => surAller('scolarite')} />
+      {(tuileGauche !== 'aucune' || accueilAlertes) && <section class={`tuiles ${tuileGauche === 'aucune' || !accueilAlertes ? 'seule' : ''}`} aria-label="Nouveautés">
+        {tuileGauche === 'note' && <TuileNote note={derniereNote} surprise={cacherNote} nouvelle={d.alertes.some((a) => a.type === 'note' && maintenant - Date.parse(a.date) < SEPT_JOURS)}
+          surVoir={() => surAller('scolarite')} />}
+        {tuileGauche === 'fichiers' && <TuileFichiers d={d} surVoir={() => surAller('cours')} />}
+        {accueilAlertes && (
         <button type="button" class="tuile" onClick={() => surAller('alertes')}>
           <span class="tuile-titre">Alertes</span>
           <span class={`tuile-valeur ${alertesRecentes.length ? 'bleu' : ''}`}>{alertesRecentes.length}</span>
           <span class="tuile-texte">{alertesRecentes.length ? alertesRecentes[0].titre : 'Rien de neuf cette semaine'}</span>
         </button>
+        )}
       </section>}
       </div>
       </div>
@@ -200,6 +205,20 @@ function ProchainExamen({ e, maintenant, surOuvrir }: { e: Evenement; maintenant
         <span class="examen-case"><small>Heure</small><strong>{heureDe(e.debut)}</strong></span>
         <span class="examen-case"><small>{salleDeduite(e) ? 'Ta salle' : 'Salle'}</small><strong>{salle || '—'}</strong></span>
       </span>
+    </button>
+  );
+}
+
+/** Nouveaux fichiers de cours, depuis la dernière visite de l'onglet Cours sur cet appareil. */
+function TuileFichiers({ d, surVoir }: { d: Donnees; surVoir: () => void }) {
+  const vus = fichiersVus();
+  const nouveaux = (d.cours ?? []).map((c) => ({ c, n: vus ? fichiersDe(c).filter((f) => !vus.has(f.cle)).length : 0 })).filter((x) => x.n > 0).sort((a, b) => b.n - a.n);
+  const total = nouveaux.reduce((s, x) => s + x.n, 0);
+  return (
+    <button type="button" class="tuile" onClick={surVoir}>
+      <span class="tuile-titre">Nouveaux fichiers</span>
+      <span class={`tuile-valeur ${total ? 'bleu' : ''}`}>{total}</span>
+      <span class="tuile-texte">{total ? nomCourt(nouveaux[0].c) + (nouveaux.length > 1 ? ` et ${nouveaux.length - 1} autre${nouveaux.length > 2 ? 's' : ''}` : '') : 'Rien de neuf dans tes cours'}</span>
     </button>
   );
 }

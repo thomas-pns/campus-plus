@@ -334,6 +334,22 @@ export async function creerApp(s: Services): Promise<FastifyInstance> {
     });
   }
 
+  /* ---------- Préférences d'affichage (les mêmes sur tous les appareils de l'élève) ---------- */
+
+  app.get('/api/preferences', { onRequest: exigerSession }, async (req) => ({
+    preferences: (await s.depot.lire<Record<string, unknown>>(req.compte!.id, 'preferences')) ?? {},
+  }));
+  app.put('/api/preferences', {
+    onRequest: exigerSession,
+    // Rien que des petits réglages : booléens ou mots courts, en nombre limité.
+    schema: { body: { type: 'object', maxProperties: 30, additionalProperties: { anyOf: [{ type: 'boolean' }, { type: 'string', maxLength: 30 }] } } },
+  }, async (req) => {
+    const id = req.compte!.id;
+    const fusion = { ...((await s.depot.lire<Record<string, unknown>>(id, 'preferences')) ?? {}), ...(req.body as Record<string, unknown>) };
+    await s.depot.ecrire(id, 'preferences', fusion);
+    return { preferences: fusion };
+  });
+
   /* ---------- Photo d'identité (MyCPE) ---------- */
 
   app.get('/api/photo', { onRequest: exigerSession }, async (req, rep) => {
