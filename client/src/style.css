@@ -451,3 +451,23 @@ a.bouton { text-decoration: none; }
 .avatar { overflow: hidden; }
 .avatar-contenu { display: contents; }
 .avatar img { width: 100%; height: 100%; object-fit: cover; object-position: center 20%; display: block; }
+
+/* ---------- Grand écran : iPad à l'horizontale, ordinateur ---------- */
+.accueil, .accueil-col { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+@media (min-width: 900px) {
+  #app:has(> .onglets) { display: grid; grid-template-columns: 232px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); grid-template-areas: "nav bandeau" "nav ecran"; }
+  #app > .bandeau { grid-area: bandeau; }
+  #app > .ecran { grid-area: ecran; }
+  .onglets { grid-area: nav; display: flex; flex-direction: column; justify-content: flex-start; gap: 4px; padding: calc(28px + var(--haut)) 14px calc(20px + var(--bas)) calc(14px + var(--gauche)); border-top: 0; border-right: 1px solid var(--trait); }
+  .onglets::before { content: "Campus+"; font-size: 22px; font-weight: 800; letter-spacing: -0.02em; color: var(--texte); padding: 0 12px 18px; }
+  .onglets button { flex-direction: row; justify-content: flex-start; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 12px; font-size: 15px; }
+  .onglets button:hover { background: var(--gris); }
+  .onglets button.actif { background: var(--bleu-pale); }
+  .onglets .onglet-icone svg { width: 22px; height: 22px; }
+  .contenu { max-width: 1040px; padding-left: 32px; padding-right: 32px; }
+  .voile { align-items: center; padding: 24px; }
+  .feuille { max-width: 560px; border-radius: 26px; margin-bottom: 0; max-height: 90%; }
+}
+@media (min-width: 1100px) {
+  .accueil { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+}

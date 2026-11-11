@@ -43,6 +43,8 @@ export function Aujourdhui({ d, maintenant, surOuvrir, surReglages, surAller, su
         <button type="button" class="avatar" onClick={surReglages} aria-label="Profil et réglages"><Avatar initiales={initialesDe(d.moi.nom)} photo={photo} /></button>
       </header>
 
+      <div class="accueil">
+      <div class="accueil-col">
       {une ? <Une e={une.evenement} enCours={une.enCours} jour={jour} maintenant={maintenant} surOuvrir={surOuvrir} /> : (
         <section class="une une-vide">
           <h2>Rien de prévu</h2>
@@ -74,6 +76,8 @@ export function Aujourdhui({ d, maintenant, surOuvrir, surReglages, surAller, su
         )}
       </section>
 
+      </div>
+      <div class="accueil-col">
       {accueilExamens && examens.length > 0 && (
         <section class="bloc" aria-label="Examens à venir">
           <h2 class="titre-bloc">Examens à venir</h2>
@@ -120,6 +124,8 @@ export function Aujourdhui({ d, maintenant, surOuvrir, surReglages, surAller, su
           <span class="tuile-texte">{alertesRecentes.length ? alertesRecentes[0].titre : 'Rien de neuf cette semaine'}</span>
         </button>
       </section>}
+      </div>
+      </div>
     </>
   );
 }
