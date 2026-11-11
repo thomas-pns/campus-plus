@@ -1,8 +1,13 @@
 import { useState } from 'preact/hooks';
 import type { Donnees, Note } from '../types';
 import { Entete, Icone, Segments, Vide, type NomIcone } from '../composants';
+import { Lecteur } from './lecteur';
+import { brouillonDepuis, Justificatif, type Brouillon } from './justificatif';
+import { resume, Simulation } from './simulation';
+import { repartitionParDefaut, type Repartition } from '../moyenne';
+import { useEffect } from 'preact/hooks';
 
-const RUBRIQUES = [{ id: 'notes', nom: 'Notes' }, { id: 'absences', nom: 'Absences' }, { id: 'liens', nom: 'Liens' }] as const;
+const RUBRIQUES = [{ id: 'notes', nom: 'Notes' }, { id: 'absences', nom: 'Absences' }, { id: 'liens', nom: 'Documents' }] as const;
 type Rubrique = (typeof RUBRIQUES)[number]['id'];
 
 /** Sites de l'école utiles mais qu'on n'intègre pas dans l'appli (connexion propre à chaque site). */
@@ -23,8 +28,19 @@ function grouper<T>(elements: T[], cle: (e: T) => string): [string, T[]][] {
   return [...groupes];
 }
 
-export function Scolarite({ d }: { d: Donnees }) {
+export function Scolarite({ d, horsLigne }: { d: Donnees; horsLigne?: boolean }) {
   const [rubrique, setRubrique] = useState<Rubrique>('notes');
+  const [certificat, setCertificat] = useState<'FR' | 'EN' | null>(null);
+  const [justif, setJustif] = useState<Brouillon | null>(null);
+  const [repartitions, setRepartitions] = useState<Record<string, Repartition>>({});
+  const [simule, setSimule] = useState<{ cours: string; epreuves: Note[] } | null>(null);
+  useEffect(() => {
+    void fetch('/api/repartitions', { credentials: 'same-origin' }).then((r) => (r.ok ? r.json() : { repartitions: {} })).then((j) => setRepartitions(j.repartitions ?? {})).catch(() => undefined);
+  }, []);
+  const enregistrer = async (cours: string, r: Repartition | null) => {
+    const rep = await fetch(`/api/repartitions/${encodeURIComponent(cours)}`, { method: 'PUT', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(r) });
+    if (rep.ok) setRepartitions((await rep.json()).repartitions ?? {});
+  };
   const publiees = d.notes.filter((n) => n.note !== null).length;
   const semestres = grouper(d.notes, (n) => n.semestre);
 
@@ -46,8 +62,37 @@ export function Scolarite({ d }: { d: Donnees }) {
         </div>
       </section>
 
+      {certificat && (
+        <Lecteur f={{ cle: `certificat-${certificat}`, nom: `Certificat de scolarité ${certificat}.pdf`, dossier: '', taille: 0, modifie: 0, type: 'application/pdf', adresse: `/api/certificat?langue=${certificat}` }}
+          surFermer={() => setCertificat(null)} />
+      )}
+      {justif && <Justificatif brouillon={justif} surFermer={() => setJustif(null)} />}
+      {simule && (
+        <Simulation cours={simule.cours} epreuves={simule.epreuves} depart={repartitions[simule.cours] ?? repartitionParDefaut(simule.epreuves)}
+          surEnregistrer={(r) => enregistrer(simule.cours, r)} surFermer={() => setSimule(null)} />
+      )}
       {rubrique === 'liens' ? (
+        <>
         <section class="bloc">
+          <h2 class="titre-groupe">Générés par MyCPE</h2>
+          <div class="carte liste">
+            {(['FR', 'EN'] as const).map((l) => (
+              <button type="button" class="rangee" disabled={horsLigne} onClick={() => setCertificat(l)}>
+                <span class="icone-rangee bleu"><Icone nom="fichier" taille={17} epaisseur={2.2} /></span>
+                <span class="rangee-texte"><strong>Certificat de scolarité{l === 'EN' ? ' (anglais)' : ''}</strong><span>PDF officiel, à jour, à partager ou enregistrer</span></span>
+                <span class="rangee-valeur"><Icone nom="droite" taille={14} epaisseur={2.4} /></span>
+              </button>
+            ))}
+            <button type="button" class="rangee" disabled={horsLigne} onClick={() => setJustif(brouillonDepuis())}>
+              <span class="icone-rangee rouge"><Icone nom="partager" taille={17} epaisseur={2.2} /></span>
+              <span class="rangee-texte"><strong>Justifier une absence</strong><span>Envoyer un justificatif à MyCPE</span></span>
+              <span class="rangee-valeur"><Icone nom="droite" taille={14} epaisseur={2.4} /></span>
+            </button>
+          </div>
+          <p class="petit-texte">MyCPE met une dizaine de secondes à générer un certificat. Les bulletins arrivent sur MyCPE après chaque jury.</p>
+        </section>
+        <section class="bloc">
+          <h2 class="titre-groupe">Liens de l’école</h2>
           <div class="carte liste">
             {LIENS.map((l) => (
               <a class="rangee" href={l.adresse} target="_blank" rel="noopener noreferrer">
@@ -59,6 +104,7 @@ export function Scolarite({ d }: { d: Donnees }) {
           </div>
           <p class="petit-texte">Ces sites s’ouvrent dans le navigateur, avec leur propre connexion.</p>
         </section>
+        </>
       ) : rubrique === 'notes' ? (
         d.notes.length ? semestres.map(([semestre, notes]) => (
           <div>
@@ -67,7 +113,8 @@ export function Scolarite({ d }: { d: Donnees }) {
               <section class="bloc">
                 <h3 class="titre-groupe">{module || 'Autres'}</h3>
                 {grouper(duModule, (n) => n.cours).map(([cours, epreuves]) => (
-                  <CarteCours cours={cours} epreuves={epreuves} moyenne={d.moyennes.find((m) => m.semestre === semestre && m.module === module && m.cours === cours)?.moyenne ?? null} />
+                  <CarteCours cours={cours} epreuves={epreuves} moyenne={d.moyennes.find((m) => m.semestre === semestre && m.module === module && m.cours === cours)?.moyenne ?? null}
+                    repartition={repartitions[cours]} surSimuler={() => setSimule({ cours, epreuves })} />
                 ))}
               </section>
             ))}
@@ -75,25 +122,32 @@ export function Scolarite({ d }: { d: Donnees }) {
         )) : <Vide icone="note" titre="Aucune note pour l'instant" texte="Elles apparaîtront ici dès leur publication sur MyCPE." />
       ) : d.absences.length ? (
         <section class="bloc">
+          <button type="button" class="bouton secondaire large" disabled={horsLigne} onClick={() => setJustif(brouillonDepuis())}>Justifier une absence</button>
           <div class="carte liste">
             {d.absences.map((a) => (
-              <div class="rangee">
+              <button type="button" class="rangee" disabled={horsLigne} onClick={() => setJustif(brouillonDepuis(a.date, a.horaire))} aria-label={`Justifier l’absence du ${a.date}`}>
                 <span class="rangee-texte">
                   <strong>{a.matiere || a.cours}</strong>
                   <span>{[a.date, a.horaire, a.duree].filter(Boolean).join(' · ')}</span>
                   {a.intervenant && <span>{a.intervenant}</span>}
                 </span>
                 <span class={`pastille ${/non|inj/i.test(a.motif) ? 'c-examen' : 'c-neutre'}`}>{a.motif || 'Sans motif'}</span>
-              </div>
+              </button>
             ))}
           </div>
         </section>
-      ) : <Vide icone="diplome" titre="Aucune absence" texte="Rien n'est enregistré sur MyCPE." />}
+      ) : (
+        <>
+          <Vide icone="diplome" titre="Aucune absence" texte="Rien n'est enregistré sur MyCPE." />
+          <button type="button" class="bouton secondaire large" disabled={horsLigne} onClick={() => setJustif(brouillonDepuis())}>Justifier une absence</button>
+        </>
+      )}
     </>
   );
 }
 
-function CarteCours({ cours, epreuves, moyenne }: { cours: string; epreuves: Note[]; moyenne: number | null }) {
+function CarteCours({ cours, epreuves, moyenne, repartition, surSimuler }: { cours: string; epreuves: Note[]; moyenne: number | null; repartition?: Repartition; surSimuler: () => void }) {
+  const r = repartition ? resume(repartition, epreuves) : null;
   return (
     <div class="carte cours-notes">
       <div class="cours-haut">
@@ -116,6 +170,10 @@ function CarteCours({ cours, epreuves, moyenne }: { cours: string; epreuves: Not
           )}
         </div>
       ))}
+      <button type="button" class={`carte-simulation ${r?.ton ?? ''}`} onClick={surSimuler}>
+        <span>{r ? r.texte : 'Simuler ma moyenne'}</span>
+        <Icone nom="droite" taille={14} epaisseur={2.4} />
+      </button>
     </div>
   );
 }

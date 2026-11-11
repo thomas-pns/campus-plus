@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ajouterJours, dans, grilleMois, moisDecale, heureDe, ilYA, initialesDe, jourDe, jourEnToutesLettres, jourParis, lundiDe, minutesDe, numeroSemaine, prenomDe, rangDansSemaine } from '../src/dates';
 import { aLaUne, disposer, duJour, prochainJourAvecCours, salleDe, salleDeduite, semaineDe } from '../src/planning';
 import type { Evenement } from '../src/types';
+import { bilan, repartitionParDefaut } from '../src/moyenne';
 import { sechable, verdict } from '../src/branleur';
 
 const evt = (jour: string, debut: string, fin: string, plus: Partial<Evenement> = {}): Evenement => ({
@@ -184,5 +185,20 @@ describe('mode branleur', () => {
     expect(verdict(matin, jour)?.message).toMatch(/grasse mat/);
     expect(verdict(soir, jour)).toEqual({ message: 'Tu peux finir à 12:15 : la sortie est à gauche 🚪', finPossible: '12:15' });
     expect(verdict(td, jour)).toBeNull();
+  });
+});
+
+describe('moyenne estimée', () => {
+  const note = (epreuve: string, n: number | null, coefficient: number | null = null) => ({ semestre: 'S5', module: 'Élec', cours: 'ELA', epreuve, coefficient, note: n, motifAbsence: '' });
+  it('propose une répartition au prorata des coefficients', () => {
+    expect(repartitionParDefaut([note('Écrit 1', 6.3, 50), note('Écrit 2', null, 50)]).parties.map((p) => p.poids)).toEqual([50, 50]);
+    expect(repartitionParDefaut([note('A', 12), note('B', null), note('C', null)]).parties.map((p) => p.poids)).toEqual([33, 33, 33]);
+  });
+  it('calcule la moyenne actuelle et la note à viser sur la suite', () => {
+    const notes = [note('Contrôle', 8)];
+    const r = { objectif: 10, parties: [{ nom: 'Contrôle', poids: 20, epreuve: 'Contrôle' }, { nom: 'TP', poids: 40 }, { nom: 'Écrit final', poids: 40 }] };
+    expect(bilan(r, notes)).toEqual({ totalPoids: 100, actuelle: 8, finale: null, aViser: 10.5, poidsRestant: 80 });
+    const tout = { ...r, parties: r.parties.map((p) => (p.epreuve ? p : { ...p, note: 12 })) };
+    expect(bilan(tout, notes)).toMatchObject({ finale: 11.2, aViser: null });
   });
 });

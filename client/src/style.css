@@ -543,3 +543,51 @@ a.bouton { text-decoration: none; }
 .ligne-facultatif { align-self: flex-start; margin-top: 4px; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--carte); color: var(--moyen); }
 .une-conseil { font-size: 14px; font-weight: 600; background: rgba(255,255,255,.16); border-radius: 12px; padding: 8px 12px; }
 .branleur { background: var(--bleu-pale); color: var(--lien); border-radius: 14px; padding: 10px 14px; font-weight: 600; }
+
+/* ---------- Formulaire court (justificatif) ---------- */
+.formulaire-court { display: flex; flex-direction: column; gap: 12px; }
+.formulaire-court label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: var(--doux); text-transform: uppercase; letter-spacing: .03em; }
+.formulaire-court input, .formulaire-court select { height: 46px; border-radius: 12px; border: 1.5px solid var(--trait); background: var(--fond); color: var(--texte); padding: 0 12px; font: 500 16px Inter, sans-serif; text-transform: none; letter-spacing: 0; width: 100%; }
+.formulaire-court input[type=file] { padding: 10px 12px; height: auto; }
+
+/* ---------- Simulation de moyenne ---------- */
+.simulation { display: flex; flex-direction: column; gap: 8px; }
+.simulation-entete, .simulation-ligne { display: grid; grid-template-columns: minmax(0, 1fr) 58px 76px 32px; gap: 8px; align-items: center; }
+.simulation-entete span { font-size: 12px; font-weight: 700; color: var(--doux); text-transform: uppercase; letter-spacing: .03em; }
+.simulation-ligne input { height: 42px; min-width: 0; border-radius: 10px; border: 1.5px solid var(--trait); background: var(--fond); color: var(--texte); padding: 0 10px; font: 500 15px Inter, sans-serif; }
+.simulation-ligne input:focus { outline: none; border-color: var(--cpe); }
+.simulation-note { height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: var(--bleu-pale); color: var(--lien); font-weight: 800; }
+.simulation-retirer { width: 32px; height: 32px; border-radius: 16px; display: grid; place-items: center; color: var(--doux); background: var(--gris); }
+.simulation .lien-bouton { align-self: flex-start; }
+.simulation-objectif { display: flex; align-items: center; gap: 8px; }
+.simulation-objectif span { font-weight: 700; margin-right: auto; }
+.simulation-objectif button { display: grid; place-items: center; min-width: 46px; height: 36px; border-radius: 18px; background: var(--gris); font-weight: 700; }
+.simulation-objectif button.actif { background: var(--cpe); color: #fff; }
+.simulation-actuelle { color: var(--moyen); }
+.simulation-resultat { font-size: 17px; font-weight: 800; padding: 12px 14px; border-radius: 14px; background: var(--bleu-pale); color: var(--lien); }
+.simulation-resultat.vert { background: rgba(30, 142, 90, .14); color: var(--vert); }
+.simulation-resultat.rouge { background: var(--rouge-pale); color: var(--rouge); }
+.carte-simulation { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 10px; border-top: 1px solid var(--trait-fin); font-size: 14px; font-weight: 600; }
+.carte-simulation.vert { color: var(--vert); } .carte-simulation.rouge { color: var(--rouge); }
+
+/* Boosters : du volume (3D, reflets holographiques, étincelles) */
+.booster-scene { perspective: 900px; }
+.booster { transform-style: preserve-3d; animation-name: flotte3d; }
+@keyframes flotte3d { 0%, 100% { transform: translateY(0) rotateY(-14deg) rotateX(4deg); } 50% { transform: translateY(-12px) rotateY(14deg) rotateX(-3deg); } }
+.booster-corps { box-shadow: inset 0 0 0 2px rgba(255,255,255,.22), inset 0 -40px 70px rgba(0,0,0,.28), inset 0 30px 50px rgba(255,255,255,.08); }
+.booster-corps::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 9px; background: #0A0F1A; -webkit-mask: conic-gradient(from 135deg at top, #0000, #000 1deg 90deg, #0000 91deg) 50% / 14px 100%; mask: conic-gradient(from 135deg at top, #0000, #000 1deg 90deg, #0000 91deg) 50% / 14px 100%; opacity: .55; }
+.booster-haut { box-shadow: inset 0 0 0 2px rgba(255,255,255,.22); }
+.booster-holo { position: absolute; inset: 0; background: conic-gradient(from 0deg, rgba(255,0,128,.35), rgba(255,200,0,.3), rgba(0,255,170,.3), rgba(0,140,255,.35), rgba(170,0,255,.3), rgba(255,0,128,.35)); mix-blend-mode: overlay; opacity: .55; animation: holo 6s linear infinite; }
+@keyframes holo { to { filter: hue-rotate(360deg); } }
+.booster-embleme { position: relative; width: 74px; height: 74px; border-radius: 37px; display: grid; place-items: center; font-size: 28px; font-weight: 900; letter-spacing: -0.04em; background: radial-gradient(circle at 35% 30%, rgba(255,255,255,.55), rgba(255,255,255,.12) 60%); box-shadow: 0 6px 18px rgba(0,0,0,.3), inset 0 0 0 2px rgba(255,255,255,.4); text-shadow: 0 2px 6px rgba(0,0,0,.35); }
+.booster-titre, .booster-logo, .booster-cours { position: relative; text-shadow: 0 2px 8px rgba(0,0,0,.3); }
+.booster-flash { position: absolute; inset: -60px; border-radius: 50%; background: radial-gradient(circle, rgba(255,255,255,.95), rgba(255,255,255,0) 65%); animation: flash .6s ease-out forwards; pointer-events: none; }
+@keyframes flash { from { opacity: 1; transform: scale(.3); } to { opacity: 0; transform: scale(1.6); } }
+.etincelles { position: absolute; left: 50%; top: 50%; pointer-events: none; }
+.etincelles i { position: absolute; width: 8px; height: 8px; margin: -4px; border-radius: 2px; background: var(--lum); box-shadow: 0 0 10px var(--lum); transform: rotate(var(--a)) translateY(0) scale(.4); opacity: 0; animation: etincelle .9s var(--t) cubic-bezier(.2,.8,.3,1) forwards; }
+.boosters.palier-or .etincelles i, .boosters.palier-vert .etincelles i { background: #fff; }
+@keyframes etincelle { 0% { opacity: 1; transform: rotate(var(--a)) translateY(0) scale(.4); } 100% { opacity: 0; transform: rotate(var(--a)) translateY(calc(-1 * var(--d))) scale(1) rotate(45deg); } }
+.boosters.ouvert .copie { transform-origin: 50% 100%; }
+.copie { transform: translateY(70px) scale(.6) rotateX(70deg); }
+.boosters.palier-sobre .etincelles { display: none; }
+@media (prefers-reduced-motion: reduce) { .booster-holo, .booster-flash, .etincelles i { animation: none; } .etincelles, .booster-flash { display: none; } }

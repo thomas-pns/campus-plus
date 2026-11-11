@@ -58,6 +58,37 @@ describe('serveur Campus+ de bout en bout (faux WebAurion)', () => {
     expect((await get('/api/preferences')).statusCode).toBe(401);
   });
 
+  it('génère le certificat de scolarité et envoie un justificatif d’absence, à la demande de l’élève', async () => {
+    const cookies = await ouvrir();
+    const certificat = await app.inject({ method: 'GET', url: '/api/certificat', cookies });
+    expect(certificat.statusCode).toBe(200);
+    expect(certificat.headers['content-type']).toBe('application/pdf');
+    expect(certificat.body.startsWith('%PDF-1.4')).toBe(true);
+    // Redemandé aussitôt (aperçu puis partage) : servi sans relancer MyCPE.
+    expect((await app.inject({ method: 'GET', url: '/api/certificat', cookies })).statusCode).toBe(200);
+    // Mais pas deux démarches de suite auprès de MyCPE.
+    expect((await app.inject({ method: 'GET', url: '/api/certificat?langue=EN', cookies })).statusCode).toBe(429);
+
+    expect((await get('/api/justificatif/motifs', cookies)).json().motifs).toEqual(['Absence pour autre motif', 'Absence pour maladie']);
+    const envoyer = (corps: object) => app.inject({ method: 'POST', url: '/api/justificatif', cookies, payload: corps });
+    const fichier = { nom: 'certificat-medical.pdf', donnees: Buffer.from('%PDF-1.4 arrêt').toString('base64') };
+    expect((await envoyer({ debut: '2026-11-10T08:00', fin: '2026-11-10T18:00', motif: 'Absence pour maladie', fichier: { ...fichier, nom: 'virus.exe' } })).statusCode).toBe(400);
+    expect((await envoyer({ debut: '2026-11-10T18:00', fin: '2026-11-10T08:00', motif: 'Absence pour maladie', fichier })).statusCode).toBe(400);
+    horloge += 21_000;
+    const rep = await envoyer({ debut: '2026-11-10T08:00', fin: '2026-11-10T18:00', motif: 'Absence pour maladie', fichier });
+    expect(rep.json()).toEqual({ ok: true, message: 'Votre demande a bien été enregistrée.' });
+    expect(faux.justificatifs).toEqual([{ debut: '10/11/2026 08:00', fin: '10/11/2026 18:00', motif: '190705', fichier: 'certificat-medical.pdf', taille: 15 }]);
+  });
+
+  it('garde la répartition des notes saisie par l’élève', async () => {
+    const cookies = await ouvrir();
+    const put = (cours: string, corps: unknown) => app.inject({ method: 'PUT', url: `/api/repartitions/${encodeURIComponent(cours)}`, cookies, headers: { 'content-type': 'application/json' }, payload: JSON.stringify(corps) });
+    const r = { objectif: 10, parties: [{ nom: 'Écrit 1', poids: 20, note: null, epreuve: 'Ecrit 1' }, { nom: 'TP', poids: 40 }] };
+    expect((await put('Électronique analogique', r)).json().repartitions).toEqual({ 'Électronique analogique': r });
+    expect((await put('X', { objectif: 30, parties: [] })).statusCode).toBe(400);
+    expect((await put('Électronique analogique', null)).json().repartitions).toEqual({});
+  });
+
   it('répond à la sonde de santé sans session', async () => {
     expect((await get('/api/sante')).json()).toEqual({ ok: true });
   });

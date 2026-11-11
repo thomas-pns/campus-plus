@@ -7,7 +7,7 @@ import cookie from '@fastify/cookie';
 import statique from '@fastify/static';
 import { resolve } from 'node:path';
 import { Readable } from 'node:stream';
-import { AurionClient, ErreurIdentifiants, type Absence, type Note } from './sources/aurion.js';
+import { AurionClient, ErreurAurion, ErreurIdentifiants, type Absence, type Note } from './sources/aurion.js';
 import { salleExamenPour, type Evenement } from './sources/planning.js';
 import { moyennesParCours, type Alerte } from './alertes.js';
 import type { Compte, Comptes } from './comptes.js';
@@ -333,6 +333,115 @@ export async function creerApp(s: Services): Promise<FastifyInstance> {
       return { etat, mails: etat.actif ? await mails.mails(id) : [] };
     });
   }
+
+  /* ---------- Documents MyCPE : certificat de scolarité, justificatif d'absence ---------- */
+
+  // Une démarche à la fois par élève, et pas plus d'une toutes les 20 secondes : MyCPE est lent.
+  const demarches = new Map<string, number>();
+  const certificats = new Map<string, { pdf: Buffer; t: number }>();
+  const avecMyCpe = async <T>(id: string, action: (client: AurionClient) => Promise<T>): Promise<T> => {
+    const derniere = demarches.get(id) ?? 0;
+    if (maintenant() - derniere < 20_000) throw Object.assign(new Error('Patiente quelques secondes avant de recommencer'), { statusCode: 429 });
+    demarches.set(id, maintenant());
+    const compte = await s.comptes.lire(id);
+    if (!compte) throw Object.assign(new Error('Compte introuvable'), { statusCode: 401 });
+    const client = s.fabriqueAurion();
+    await client.connexion(compte.identifiant, compte.motDePasse);
+    return action(client);
+  };
+  const erreurMyCpe = (e: unknown, rep: FastifyReply) => {
+    const code = (e as { statusCode?: number }).statusCode;
+    if (code) return rep.code(code).send({ erreur: (e as Error).message });
+    if (e instanceof ErreurAurion) return rep.code(502).send({ erreur: e.message });
+    throw e;
+  };
+
+  app.get('/api/certificat', { onRequest: exigerSession }, async (req, rep) => {
+    const langue = (req.query as { langue?: string }).langue === 'EN' ? 'EN' : 'FR';
+    const id = req.compte!.id;
+    try {
+      // Gardé 10 minutes : l'aperçu puis le partage le redemandent sans relancer MyCPE.
+      const garde = certificats.get(`${id}|${langue}`);
+      const pdf = garde && maintenant() - garde.t < 600_000 ? garde.pdf : await avecMyCpe(id, (c) => c.certificat(langue));
+      certificats.set(`${id}|${langue}`, { pdf, t: garde && garde.pdf === pdf ? garde.t : maintenant() });
+      rep.header('Content-Type', 'application/pdf');
+      rep.header('Content-Disposition', `inline; filename="certificat-scolarite-${langue.toLowerCase()}.pdf"`);
+      rep.header('Cache-Control', 'private, no-store');
+      return rep.send(pdf);
+    } catch (e) {
+      return erreurMyCpe(e, rep);
+    }
+  });
+
+  app.get('/api/justificatif/motifs', { onRequest: exigerSession }, async (req, rep) => {
+    try {
+      const compte = await s.comptes.lire(req.compte!.id);
+      if (!compte) return rep.code(401).send({ erreur: 'Compte introuvable' });
+      const client = s.fabriqueAurion();
+      await client.connexion(compte.identifiant, compte.motDePasse);
+      return { motifs: await client.motifsAbsence() };
+    } catch (e) {
+      return erreurMyCpe(e, rep);
+    }
+  });
+
+  const DATE_HEURE = { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}$' };
+  app.post('/api/justificatif', {
+    onRequest: exigerSession,
+    bodyLimit: 8 * 1024 * 1024,
+    schema: { body: { type: 'object', required: ['debut', 'fin', 'motif', 'fichier'], additionalProperties: false, properties: {
+      debut: DATE_HEURE, fin: DATE_HEURE, motif: { type: 'string', minLength: 3, maxLength: 120 },
+      fichier: { type: 'object', required: ['nom', 'donnees'], additionalProperties: false, properties: {
+        nom: { type: 'string', minLength: 1, maxLength: 200 }, donnees: { type: 'string', maxLength: 7_000_000 },
+      } },
+    } } },
+  }, async (req, rep) => {
+    const b = req.body as { debut: string; fin: string; motif: string; fichier: { nom: string; donnees: string } };
+    const extension = b.fichier.nom.toLowerCase().match(/\.(pdf|docx|png|jpe?g)$/)?.[1];
+    if (!extension) return rep.code(400).send({ erreur: 'Fichier accepté par MyCPE : PDF, DOCX, PNG ou JPG' });
+    const octets = Buffer.from(b.fichier.donnees, 'base64');
+    if (!octets.length || octets.length > 5_000_000) return rep.code(400).send({ erreur: 'Fichier vide ou trop gros (5 Mo au plus)' });
+    if (b.fin < b.debut) return rep.code(400).send({ erreur: 'La fin de l’absence est avant son début' });
+    const types: Record<string, string> = { pdf: 'application/pdf', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg' };
+    // MyCPE attend « jj/mm/aaaa hh:mm ».
+    const fr = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)} ${d.slice(11, 16)}`;
+    try {
+      const message = await avecMyCpe(req.compte!.id, (c) => c.justifierAbsence({
+        debut: fr(b.debut), fin: fr(b.fin), motif: b.motif, fichier: { nom: b.fichier.nom, type: types[extension], octets },
+      }));
+      return { ok: true, message };
+    } catch (e) {
+      return erreurMyCpe(e, rep);
+    }
+  });
+
+  /* ---------- Répartition des notes par cours (saisie par l'élève, pour simuler sa moyenne) ---------- */
+
+  app.get('/api/repartitions', { onRequest: exigerSession }, async (req) => ({
+    repartitions: (await s.depot.lire<Record<string, unknown>>(req.compte!.id, 'repartitions')) ?? {},
+  }));
+  app.put('/api/repartitions/:cours', {
+    onRequest: exigerSession,
+    schema: {
+      params: { type: 'object', properties: { cours: { type: 'string', minLength: 1, maxLength: 200 } } },
+      body: { anyOf: [{ type: 'null' }, { type: 'object', required: ['parties', 'objectif'], additionalProperties: false, properties: {
+        objectif: { type: 'number', minimum: 0, maximum: 20 },
+        parties: { type: 'array', maxItems: 20, items: { type: 'object', required: ['nom', 'poids'], additionalProperties: false, properties: {
+          nom: { type: 'string', minLength: 1, maxLength: 80 }, poids: { type: 'number', minimum: 0, maximum: 100 },
+          note: { type: ['number', 'null'], minimum: 0, maximum: 20 }, epreuve: { type: ['string', 'null'], maxLength: 120 },
+        } } },
+      } }] },
+    },
+  }, async (req) => {
+    const id = req.compte!.id;
+    const { cours } = req.params as { cours: string };
+    const toutes = (await s.depot.lire<Record<string, unknown>>(id, 'repartitions')) ?? {};
+    if (req.body === null) delete toutes[cours];
+    else toutes[cours] = req.body;
+    if (Object.keys(toutes).length > 60) return { repartitions: toutes };
+    await s.depot.ecrire(id, 'repartitions', toutes);
+    return { repartitions: toutes };
+  });
 
   /* ---------- Préférences d'affichage (les mêmes sur tous les appareils de l'élève) ---------- */
 

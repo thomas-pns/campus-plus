@@ -242,7 +242,7 @@ export function App() {
             surDevoirs={() => { setOnglet('aujourdhui'); setPage('devoirs'); }}
             horsLigne={horsLigne} surChangeMails={changerMails} surCreerDevoir={devoirDepuisMail} />
         ) : (
-          <Scolarite d={d} />
+          <Scolarite d={d} horsLigne={horsLigne} />
         )}
       </Defilement>
 

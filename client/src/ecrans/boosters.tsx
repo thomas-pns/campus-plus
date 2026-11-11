@@ -70,12 +70,20 @@ export function Boosters({ notes, surFin, demo }: { notes: Note[]; surFin: () =>
         <button type="button" class="booster" onClick={ouvrir} disabled={ouvert} aria-label={`Ouvrir la note de ${note.cours}`}>
           <span class="booster-haut" aria-hidden="true"><span class="booster-dents" /></span>
           <span class="booster-corps" aria-hidden="true">
+            <span class="booster-holo" />
+            <span class="booster-embleme">C+</span>
             <span class="booster-logo">Campus+</span>
             <span class="booster-titre">Nouvelle note</span>
             <span class="booster-cours">{note.cours}</span>
             <span class="booster-reflet" />
           </span>
         </button>
+        {ouvert && <span class="booster-flash" aria-hidden="true" />}
+        {ouvert && (
+          <span class="etincelles" aria-hidden="true">
+            {Array.from({ length: 14 }, (_, k) => <i style={{ '--a': `${(360 / 14) * k}deg`, '--d': `${110 + (k % 4) * 28}px`, '--t': `${(k % 5) * 40}ms` }} />)}
+          </span>
+        )}
         <div class="copie" aria-hidden={!ouvert}>
           <span class="copie-epreuve">{note.epreuve}</span>
           <span class="copie-note">{fr(note.note)}<small>/20</small></span>

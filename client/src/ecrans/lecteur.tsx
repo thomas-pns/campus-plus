@@ -9,7 +9,9 @@ import type { Fichier } from '../types';
 import { Icone } from '../composants';
 import { taille, typeFichier } from '../cours';
 
-export const adresseFichier = (f: Fichier) => `/api/fichiers/${f.cle}`;
+/** Un fichier de cours, ou un document servi ailleurs (certificat MyCPE) quand `adresse` est donnée. */
+export type FichierLu = Fichier & { adresse?: string };
+export const adresseFichier = (f: FichierLu) => f.adresse ?? `/api/fichiers/${f.cle}`;
 
 /** iPhone et iPad : « télécharger » ouvre le fichier au lieu de l'enregistrer ; on passe par le menu de partage. */
 export const surIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -22,7 +24,7 @@ const PREPARATION_MAX = 60 * 1024 * 1024;
  * Prépare le fichier pour le menu de partage du téléphone. Sur iPhone, le partage doit suivre
  * directement un appui : le fichier est donc chargé avant, dès l'ouverture du panneau ou du lecteur.
  */
-export function usePartage(f: Fichier) {
+export function usePartage(f: FichierLu) {
   const [fichier, setFichier] = useState<File | null>(null);
   const [etat, setEtat] = useState<'' | 'preparation' | 'erreur'>('');
   const preparer = async () => {
@@ -40,7 +42,8 @@ export function usePartage(f: Fichier) {
       return null;
     }
   };
-  useEffect(() => { if (partageDisponible() && f.taille <= PREPARATION_MAX) void preparer(); }, [f.cle]);
+  // Un document généré à la demande (certificat) n'est préparé qu'au moment du partage.
+  useEffect(() => { if (partageDisponible() && !f.adresse && f.taille <= PREPARATION_MAX) void preparer(); }, [f.cle]);
 
   const partager = async () => {
     const pret = fichier ?? (await preparer());
@@ -56,9 +59,9 @@ export function usePartage(f: Fichier) {
 }
 
 /** Téléchargement classique (ordinateur, Android). */
-export function enregistrer(f: Fichier): void {
+export function enregistrer(f: FichierLu): void {
   const a = document.createElement('a');
-  a.href = `${adresseFichier(f)}?telecharger=1`;
+  a.href = f.adresse ?? `${adresseFichier(f)}?telecharger=1`;
   a.download = f.nom;
   document.body.appendChild(a);
   a.click();
@@ -145,7 +148,7 @@ function usePincement(ref: { current: HTMLDivElement | null }, actif: boolean, z
 const estPdf = (f: Fichier) => f.type === 'application/pdf' || /\.pdf$/i.test(f.nom);
 const estImage = (f: Fichier) => /^image\/(png|jpe?g|gif|webp)$/.test(f.type) || /\.(png|jpe?g|gif|webp)$/i.test(f.nom);
 
-export function Lecteur({ f, surFermer }: { f: Fichier; surFermer: () => void }) {
+export function Lecteur({ f, surFermer }: { f: FichierLu; surFermer: () => void }) {
   const { partager, etat } = usePartage(f);
   const [zoom, setZoom] = useState(1);
   useEffect(() => {
@@ -212,7 +215,7 @@ type PagePdf = {
 };
 
 /** PDF page par page : chaque page n'est dessinée que lorsqu'elle approche de l'écran. */
-function Pdf({ f, zoom, surPage }: { f: Fichier; zoom: number; surPage: (p: { n: number; total: number }) => void }) {
+function Pdf({ f, zoom, surPage }: { f: FichierLu; zoom: number; surPage: (p: { n: number; total: number }) => void }) {
   const [doc, setDoc] = useState<DocPdf | null>(null);
   const [formats, setFormats] = useState<number[]>([]);
   const [erreur, setErreur] = useState(false);

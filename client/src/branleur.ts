@@ -13,7 +13,11 @@ export interface Verdict {
 
 const OBLIGATOIRE = /\b(td|tp|ds|examen|partiel|controle|langue|anglais|lv\d)\b/i;
 
+/** Créneaux « non pédagogiques » (réunions, amphis d'info…) : jamais d'appel. */
+const NON_PEDAGOGIQUE = /non p[ée]dagogique/i;
+
 export function sechable(e: Evenement): boolean {
+  if (NON_PEDAGOGIQUE.test(`${e.matiere} ${e.type}`) && e.categorie !== 'examen') return true;
   if (!['cours', 'fhes'].includes(e.categorie)) return false;
   return !OBLIGATOIRE.test(`${e.type} ${e.matiere}`);
 }
@@ -37,7 +41,8 @@ export function verdict(e: Evenement, planning: Evenement[]): Verdict | null {
   const avantTout = !obligatoires.length || obligatoires[0].debut >= e.fin;
   const finPossible = apresTout && dernierObligatoire ? heureDe(dernierObligatoire.fin) : null;
   let message: string;
-  if (!obligatoires.length) message = 'Que du facultatif aujourd’hui : journée off ? 🏖️';
+  if (NON_PEDAGOGIQUE.test(`${e.matiere} ${e.type}`)) message = 'Non pédagogique : personne ne vérifie, va dormir 😴';
+  else if (!obligatoires.length) message = 'Que du facultatif aujourd’hui : journée off ? 🏖️';
   else if (avantTout && heureDe(e.debut) <= '08:30') message = 'Cours à 8 h facultatif : grasse mat’ validée 😴';
   else if (apresTout) message = `Tu peux finir à ${finPossible} : la sortie est à gauche 🚪`;
   else message = PHRASES[hache(e.cle) % PHRASES.length];
