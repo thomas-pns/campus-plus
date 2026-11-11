@@ -698,3 +698,13 @@ a.bouton { text-decoration: none; }
 .boosters .booster.en-coupe .booster-ligne::before { animation: none; opacity: 0; }
 .boosters .booster-ligne::after { top: -6px; height: 20px; background: linear-gradient(90deg, rgba(255,255,255,.2), #fff 85%, #FFF6C8); border-radius: 10px; box-shadow: 0 0 14px #fff, 0 0 28px #FFD24A; filter: none; }
 @media (prefers-reduced-motion: reduce) { .boosters .booster-ligne, .boosters .booster-ligne::before { animation: none; } }
+
+/* La lumière reste dans le paquet ; étincelles le long de la découpe */
+.boosters .booster-ligne { clip-path: inset(-14px 0 -14px 0); }
+.eclat-coupe { position: absolute; bottom: 8px; width: 5px; height: 5px; margin-left: -2px; border-radius: 50%; background: #FFF6C8; box-shadow: 0 0 6px #fff, 0 0 12px #FFD24A; pointer-events: none; animation: eclat-coupe .6s ease-out forwards; }
+.eclat-coupe:nth-child(3n) { background: #FF8AD8; box-shadow: 0 0 6px #fff, 0 0 12px #FF8AD8; }
+.eclat-coupe:nth-child(3n+1) { background: #8AE8FF; box-shadow: 0 0 6px #fff, 0 0 12px #8AE8FF; }
+@keyframes eclat-coupe { 0% { transform: rotate(var(--a)) translateY(0) scale(1.2); opacity: 1; } 100% { transform: rotate(var(--a)) translateY(-34px) scale(.2); opacity: 0; } }
+.boosters .booster.en-coupe .booster-haut { animation: frisson .12s linear infinite; }
+@keyframes frisson { 0%, 100% { translate: 0 0; } 50% { translate: .6px -.4px; } }
+@media (prefers-reduced-motion: reduce) { .eclat-coupe { display: none; } .boosters .booster.en-coupe .booster-haut { animation: none; } }

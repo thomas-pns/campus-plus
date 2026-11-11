@@ -51,6 +51,9 @@ export function Boosters({ notes, surFin, demo }: { notes: Note[]; surFin: () =>
   // Comme dans les jeux de cartes : on présente le paquet, « Ouvrir », puis on trace une ligne pour le découper.
   const decoupe = true;
   const [depuisDroite, setDepuisDroite] = useState(false);
+  // Étincelles qui jaillissent de la découpe, là où passe le doigt.
+  const [eclats, setEclats] = useState<{ id: number; x: number; a: number }[]>([]);
+  const dernierEclat = useRef(0);
   const [secoue, setSecoue] = useState(false);
   const geste = useRef<{ x: number; largeur: number; bouge: boolean } | null>(null);
   const note = notes[i];
@@ -72,6 +75,8 @@ export function Boosters({ notes, surFin, demo }: { notes: Note[]; surFin: () =>
     if (i + 1 >= notes.length) return surFin();
     setOuvert(false);
     setCoupe(0);
+    setEclats([]);
+    dernierEclat.current = 0;
     setI(i + 1);
   };
   // Comme dans les jeux de cartes : on glisse le doigt le long du haut du paquet pour le découper.
@@ -91,6 +96,13 @@ export function Boosters({ notes, surFin, demo }: { notes: Note[]; surFin: () =>
     if (!g || ouvert) return;
     const p = Math.max(0, Math.min(1, Math.abs(ev.clientX - g.x) / (g.largeur * 0.8)));
     if (p > 0.04 && !g.bouge) { g.bouge = true; setDepuisDroite(ev.clientX < g.x); }
+    if (p - dernierEclat.current > 0.05) {
+      dernierEclat.current = p;
+      const x = ev.clientX < g.x ? 100 - p * 100 : p * 100;
+      const id = Date.now() + Math.random();
+      setEclats((e) => [...e.slice(-24), ...[0, 1, 2].map((k) => ({ id: id + k, x, a: -150 + Math.random() * 120 }))]);
+      navigator.vibrate?.(4);
+    }
     setCoupe(p);
     if (p >= 1) { geste.current = null; ouvrir(); }
   };
@@ -107,6 +119,7 @@ export function Boosters({ notes, surFin, demo }: { notes: Note[]; surFin: () =>
     if (ouvert) return;
     if (g && coupe > 0.6) return ouvrir();
     relacher(el);
+    dernierEclat.current = 0;
     setCoupe(0);
     if (g && !g.bouge) { setSecoue(true); setTimeout(() => setSecoue(false), 400); }
   };
@@ -128,6 +141,7 @@ export function Boosters({ notes, surFin, demo }: { notes: Note[]; surFin: () =>
             <span class="booster-marque"><span>Campus<b>+</b></span><small>Collection notes</small></span>
             <span class="booster-code">{note.semestre.match(/semestre\s*(\d+)/i)?.[1] ? `S${note.semestre.match(/semestre\s*(\d+)/i)![1]}` : 'CPE'}</span>
             <span class="booster-ligne" />
+            {eclats.map((e) => <i key={e.id} class="eclat-coupe" style={{ left: `${e.x}%`, '--a': `${e.a}deg` }} />)}
           </span>
           <span class="booster-corps" aria-hidden="true">
             <span class="booster-art"><i /><i /><i /><i /></span>
