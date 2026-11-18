@@ -30,6 +30,19 @@ describe('alertes du planning', () => {
     expect(a.find((x) => x.type === 'supprime')?.titre).toContain('Signaux');
   });
 
+  it('regroupe un créneau retiré et un créneau ajouté de la même matière en « cours déplacé »', () => {
+    const a = comparerPlanning(base, [base[0], evt('2026-11-14', '14:00', '16:00', 'B204', 'Signaux', 'TD', 'N01_TD')], MAINTENANT);
+    expect(a).toHaveLength(1);
+    expect(a[0]).toMatchObject({ type: 'horaire', titre: 'Cours déplacé : Signaux (TD)', detail: 'Le 13/11/2026 à 10h15 passe au 14/11/2026 à 14h00, salle B204' });
+  });
+
+  it('signale un cours annulé (mention dans les remarques)', () => {
+    const annule = lireEvenement({ id: 'x', title: 'F008\n3ETI\nAlgèbre linéaire\nCours\nDUPONT Alice\nCours annulé\n', start: '2026-11-12T08:00:00+0100', end: '2026-11-12T10:00:00+0100', className: 'N01_COURS' });
+    const a = comparerPlanning(base, [annule, base[1]], MAINTENANT);
+    expect(a).toHaveLength(1);
+    expect(a[0]).toMatchObject({ type: 'supprime', titre: 'Cours annulé : Algèbre linéaire (Cours)' });
+  });
+
   it('ignore le passé et ce qui est à plus de deux semaines', () => {
     const avant = [evt('2026-11-09', '08:00', '10:00', 'F008'), evt('2027-02-01', '08:00', '10:00', 'F008')];
     const apres = [evt('2026-11-09', '08:00', '10:00', 'F002'), evt('2027-02-01', '08:00', '10:00', 'F002')];

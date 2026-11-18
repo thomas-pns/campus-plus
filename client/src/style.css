@@ -770,3 +770,10 @@ a.bouton { text-decoration: none; }
 .boutique-pied { text-align: center; }
 .boutique-toast { position: absolute; left: 50%; bottom: calc(24px + var(--bas)); transform: translateX(-50%); padding: 10px 16px; border-radius: 999px; background: rgba(11,18,32,.88); color: #fff; font-size: 14px; font-weight: 600; white-space: nowrap; animation: apparait .2s; }
 @media (prefers-reduced-motion: reduce) { .boutique, .boutique-banniere::after, .boutique-soon { animation: none; } }
+
+/* Bouton « Actualiser » en bas de la barre latérale, sur ordinateur (au doigt, on tire vers le bas ; partout, Ctrl/⌘ + R) */
+.onglets .actualiser-pc { display: none; }
+@media (min-width: 900px) and (hover: hover) and (pointer: fine) {
+  .onglets .actualiser-pc { display: flex; margin-top: auto; color: var(--doux); }
+  .onglets .actualiser-pc kbd { margin-left: auto; font: 600 11px Inter, system-ui, sans-serif; color: var(--doux); background: var(--gris); border-radius: 6px; padding: 2px 6px; }
+}

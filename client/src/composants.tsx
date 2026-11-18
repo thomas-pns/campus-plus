@@ -199,6 +199,7 @@ export function Defilement({ children, surActualiser, cle }: { children: Compone
   const depart = useRef<number | null>(null);
   const [tire, setTire] = useState(0);
   const [enCours, setEnCours] = useState(false);
+  const enCoursRef = useRef(false);
 
   // Revenir en haut quand on change d'écran.
   useEffect(() => { zone.current?.scrollTo(0, 0); }, [cle]);
@@ -211,18 +212,40 @@ export function Defilement({ children, surActualiser, cle }: { children: Compone
     const dy = ev.touches[0].clientY - depart.current;
     setTire(dy > 0 && (zone.current?.scrollTop ?? 1) <= 0 ? Math.min(dy * 0.5, 110) : 0);
   };
+  const lancer = () => {
+    if (!surActualiser || enCoursRef.current) return;
+    enCoursRef.current = true;
+    setEnCours(true);
+    void surActualiser().finally(() => { enCoursRef.current = false; setEnCours(false); });
+  };
   const fin = () => {
     const declenche = tire >= SEUIL;
     depart.current = null;
     setTire(0);
-    if (declenche && surActualiser) {
-      setEnCours(true);
-      void surActualiser().finally(() => setEnCours(false));
-    }
+    if (declenche) lancer();
   };
+
+  // Sur ordinateur : Ctrl + R (⌘ + R sur Mac) actualise les données au lieu de recharger la page.
+  const lancerRef = useRef(lancer);
+  lancerRef.current = lancer;
+  useEffect(() => {
+    if (!surActualiser) return;
+    const touche = (ev: KeyboardEvent) => {
+      if ((ev.ctrlKey || ev.metaKey) && !ev.shiftKey && !ev.altKey && ev.key.toLowerCase() === 'r') {
+        ev.preventDefault();
+        lancerRef.current();
+      }
+    };
+    // Le bouton « Actualiser » de la barre latérale passe par cet événement.
+    const demande = () => lancerRef.current();
+    document.addEventListener('keydown', touche);
+    document.addEventListener('campus:actualiser', demande);
+    return () => { document.removeEventListener('keydown', touche); document.removeEventListener('campus:actualiser', demande); };
+  }, [!!surActualiser]);
 
   const hauteur = enCours ? 44 : tire;
   return (
+    <>
     <main class="ecran" ref={zone} onTouchStart={debut} onTouchMove={bouge} onTouchEnd={fin} onTouchCancel={fin}>
       <div class="tirer" style={{ height: `${hauteur}px` }} aria-hidden={!enCours}>
         <span class={enCours ? 'tourne' : ''} style={{ transform: enCours ? undefined : `rotate(${tire * 3}deg)`, opacity: enCours ? 1 : Math.min(tire / SEUIL, 1) }}>
@@ -232,6 +255,7 @@ export function Defilement({ children, surActualiser, cle }: { children: Compone
       </div>
       <div class="contenu">{children}</div>
     </main>
+    </>
   );
 }
 

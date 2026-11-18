@@ -38,6 +38,10 @@ const quand = (e: Evenement) => `${jour(e.debut)} à ${heure(e.debut)}`;
 const libelle = (e: Evenement) => (e.type && e.type !== e.matiere ? `${e.matiere} (${e.type.trim()})` : e.matiere);
 const identifiant = (...morceaux: string[]) => createHash('sha256').update(morceaux.join('|')).digest('hex').slice(0, 16);
 
+/** WebAurion signale parfois l'annulation dans les remarques ou à la place de la salle. */
+const annule = (e: Evenement) => [...(e.remarques ?? []), ...(e.salles ?? [])].some((t) => /\bannul[ée]/i.test(t));
+const memeCours = (x: Evenement, y: Evenement) => x.matiere === y.matiere && x.type.trim() === y.type.trim() && x.groupe === y.groupe && x.categorie === y.categorie;
+
 /** Regroupe par clé stable ; deux créneaux identiques dans des salles différentes sont fusionnés. */
 function parCle(evts: Evenement[]): Map<string, Evenement> {
   const m = new Map<string, Evenement>();
@@ -60,13 +64,18 @@ export function comparerPlanning(avant: Evenement[], apres: Evenement[], mainten
   const b = parCle(apres.filter(proche));
   const alertes: Alerte[] = [];
 
+  const ajoutes: Evenement[] = [];
   for (const [cle, e] of b) {
     const ancien = a.get(cle);
     if (!ancien) {
+      ajoutes.push(e);
+      continue;
+    }
+    if (annule(e) && !annule(ancien)) {
       alertes.push({
-        id: identifiant('ajoute', cle), type: 'ajoute', date, cleEvenement: cle,
-        titre: e.categorie === 'examen' ? `Nouvel examen : ${e.matiere}` : `Nouveau créneau : ${libelle(e)}`,
-        detail: `${quand(e)}${e.salles.length ? `, salle ${e.salles.join(' / ')}` : ''}`,
+        id: identifiant('annule', cle), type: 'supprime', date, cleEvenement: cle,
+        titre: `Cours annulé : ${libelle(e)}`,
+        detail: `Il était prévu le ${quand(e)}`,
       });
       continue;
     }
@@ -87,12 +96,36 @@ export function comparerPlanning(avant: Evenement[], apres: Evenement[], mainten
       });
     }
   }
-  for (const [cle, e] of a) {
-    if (b.has(cle)) continue;
+  const supprimes = [...a].filter(([cle]) => !b.has(cle)).map(([, e]) => e);
+
+  // Un créneau retiré et un créneau ajouté de la même matière (même type, même groupe) : c'est un cours déplacé.
+  const libres = new Set(ajoutes);
+  for (const ancien of supprimes) {
+    const candidat = [...libres]
+      .filter((e) => memeCours(e, ancien) && Math.abs(Date.parse(e.debut) - Date.parse(ancien.debut)) <= HORIZON_JOURS * JOUR_MS)
+      .sort((x, y) => Math.abs(Date.parse(x.debut) - Date.parse(ancien.debut)) - Math.abs(Date.parse(y.debut) - Date.parse(ancien.debut)))[0];
+    if (candidat) {
+      libres.delete(candidat);
+      const salle = candidat.salles.length ? `, salle ${candidat.salles.join(' / ')}` : '';
+      alertes.push({
+        id: identifiant('deplace', ancien.cle, candidat.cle), type: 'horaire', date, cleEvenement: candidat.cle,
+        titre: `Cours déplacé : ${libelle(candidat)}`,
+        detail: `Le ${quand(ancien)} passe au ${quand(candidat)}${salle}`,
+      });
+      continue;
+    }
     alertes.push({
-      id: identifiant('supprime', cle), type: 'supprime', date, cleEvenement: cle,
-      titre: `Créneau supprimé ou déplacé : ${libelle(e)}`,
-      detail: `Il était prévu le ${quand(e)}`,
+      id: identifiant('supprime', ancien.cle), type: 'supprime', date, cleEvenement: ancien.cle,
+      titre: `Créneau supprimé : ${libelle(ancien)}`,
+      detail: `Il était prévu le ${quand(ancien)}`,
+    });
+  }
+  for (const e of libres) {
+    if (annule(e)) continue;
+    alertes.push({
+      id: identifiant('ajoute', e.cle), type: 'ajoute', date, cleEvenement: e.cle,
+      titre: e.categorie === 'examen' ? `Nouvel examen : ${e.matiere}` : `Nouveau créneau : ${libelle(e)}`,
+      detail: `${quand(e)}${e.salles.length ? `, salle ${e.salles.join(' / ')}` : ''}`,
     });
   }
   return alertes;

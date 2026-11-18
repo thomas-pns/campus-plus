@@ -267,6 +267,11 @@ export function App() {
             <span>{o.nom}</span>
           </button>
         ))}
+        <button type="button" class="actualiser-pc" onClick={() => document.dispatchEvent(new Event('campus:actualiser'))} title="Actualiser les données de MyCPE">
+          <span class="onglet-icone"><Icone nom="actualiser" taille={22} epaisseur={1.9} /></span>
+          <span>Actualiser</span>
+          <kbd>{/Mac/.test(navigator.platform) ? '⌘R' : 'Ctrl R'}</kbd>
+        </button>
       </nav>
 
       {boutique && <Boutique surFermer={() => setBoutique(false)} />}
