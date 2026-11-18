@@ -16,6 +16,8 @@ export const adresseFichier = (f: FichierLu) => f.adresse ?? `/api/fichiers/${f.
 /** iPhone et iPad : « télécharger » ouvre le fichier au lieu de l'enregistrer ; on passe par le menu de partage. */
 export const surIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 export const partageDisponible = () => typeof navigator.share === 'function' && typeof navigator.canShare === 'function';
+/** Écran tactile (téléphone, tablette) : on y partage. Sur ordinateur, on télécharge. */
+export const tactile = () => matchMedia('(pointer: coarse)').matches;
 
 /** Taille au-delà de laquelle on ne prépare pas le fichier d'avance (il n'est pas gardé sur le serveur). */
 const PREPARATION_MAX = 60 * 1024 * 1024;
@@ -61,7 +63,7 @@ export function usePartage(f: FichierLu) {
 /** Téléchargement classique (ordinateur, Android). */
 export function enregistrer(f: FichierLu): void {
   const a = document.createElement('a');
-  a.href = f.adresse ?? `${adresseFichier(f)}?telecharger=1`;
+  a.href = `${adresseFichier(f)}${adresseFichier(f).includes('?') ? '&' : '?'}telecharger=1`;
   a.download = f.nom;
   document.body.appendChild(a);
   a.click();
@@ -208,11 +210,17 @@ export function Lecteur({ f, surFermer }: { f: FichierLu; surFermer: () => void 
             <button type="button" class="lecteur-bouton" aria-label="Zoomer" disabled={zoom >= ZOOM_MAX} onClick={() => setZoom(borner(zoom * 1.5))}>+</button>
           </span>
         )}
-        {partageDisponible() ? (
-          <button type="button" class="lecteur-bouton" aria-label="Partager ou enregistrer" disabled={etat === 'preparation'} onClick={() => void partager()}>
+        {!tactile() && (
+          <button type="button" class="lecteur-bouton" aria-label="Télécharger" title="Télécharger" onClick={() => enregistrer(f)}>
+            <Icone nom="telecharger" taille={20} epaisseur={2.2} />
+          </button>
+        )}
+        {partageDisponible() && (
+          <button type="button" class="lecteur-bouton" aria-label="Partager ou enregistrer" title="Partager" disabled={etat === 'preparation'} onClick={() => void partager()}>
             <Icone nom="partager" taille={20} epaisseur={2.2} />
           </button>
-        ) : (
+        )}
+        {!partageDisponible() && tactile() && (
           <button type="button" class="lecteur-bouton" aria-label="Enregistrer" onClick={() => enregistrer(f)}>
             <Icone nom="telecharger" taille={20} epaisseur={2.2} />
           </button>
@@ -232,7 +240,7 @@ export function Lecteur({ f, surFermer }: { f: FichierLu; surFermer: () => void 
                 <Icone nom="partager" taille={18} epaisseur={2.4} />&nbsp;{etat === 'preparation' ? 'Préparation…' : 'Ouvrir avec…'}
               </button>
             )}
-            {!ios && <button type="button" class="bouton secondaire large" onClick={() => enregistrer(f)}><Icone nom="telecharger" taille={18} epaisseur={2.4} />&nbsp;Enregistrer</button>}
+            {(!ios || !tactile()) && <button type="button" class="bouton secondaire large" onClick={() => enregistrer(f)}><Icone nom="telecharger" taille={18} epaisseur={2.4} />&nbsp;Enregistrer</button>}
           </div>
         )}
       </div>

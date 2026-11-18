@@ -1,5 +1,5 @@
 /** Assemblage de l'appli : connexion, chargement des données, onglets. */
-import { useCallback, useEffect, useState } from 'preact/hooks';
+import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
 import type { Donnees, Evenement } from './types';
 import * as api from './api';
 import { synchroniserPreferences } from './preferences';
@@ -11,6 +11,7 @@ import { Scolarite } from './ecrans/scolarite';
 import { Alertes } from './ecrans/alertes';
 import { Reglages } from './ecrans/reglages';
 import { Visite, visiteAFaire } from './ecrans/visite';
+import { Boutique } from './ecrans/boutique';
 import { Connexion } from './ecrans/connexion';
 import { CoursEcran } from './ecrans/cours';
 import { fichiersDe } from './cours';
@@ -100,7 +101,13 @@ export function App() {
   }, [recharger]);
 
   /** « Tirer pour actualiser » : demande au serveur de réinterroger MyCPE, puis recharge. */
+  // Easter egg : trois « tirer pour actualiser » d'affilée (en moins de 20 s) ouvrent la boutique du BDE.
+  const [boutique, setBoutique] = useState(false);
+  const actualisations = useRef<number[]>([]);
   const actualiser = useCallback(async () => {
+    const t = Date.now();
+    actualisations.current = [...actualisations.current.filter((x) => t - x < 20_000), t];
+    if (actualisations.current.length >= 3) { actualisations.current = []; setBoutique(true); }
     await api.synchroniser().catch(() => undefined);
     await recharger();
   }, [recharger]);
@@ -262,6 +269,7 @@ export function App() {
         ))}
       </nav>
 
+      {boutique && <Boutique surFermer={() => setBoutique(false)} />}
       {visite && <Visite surFin={() => setVisite(false)} surAller={(o) => { setPage(null); choisir(o); }} />}
       {fiche && <FicheEvenement e={fiche} planning={d.planning} surFermer={fermerFiche} surAjouterDevoir={d.afaire && !horsLigne ? devoirDepuisCreneau : undefined} />}
       {brouillon && d.afaire && (

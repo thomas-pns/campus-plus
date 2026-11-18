@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { createPortal } from 'preact/compat';
-import { enregistrer, Lecteur, partageDisponible, surIOS, usePartage } from './lecteur';
+import { enregistrer, Lecteur, partageDisponible, surIOS, tactile, usePartage } from './lecteur';
 import type { Cours, Donnees, ElementCours, Evenement, Fichier } from '../types';
 import { correspond, fichiersDe, nomCourt, parType, poleDe, semestreDe, sigle, taille, trierSemestres, typeFichier } from '../cours';
 import { affichageCours, choisirAffichage, type Affichage } from '../api';
@@ -205,7 +205,7 @@ function FicheFichier({ f, surOuvrir, surFermer }: { f: Fichier; surOuvrir: () =
               <Icone nom="partager" taille={18} epaisseur={2.4} />&nbsp;{etat === 'preparation' ? 'Préparation…' : ios ? 'Partager ou enregistrer…' : 'Partager…'}
             </button>
           )}
-          {!(ios && partageable) && (
+          {(!(ios && partageable) || !tactile()) && (
             <button type="button" class="bouton secondaire large" onClick={() => enregistrer(f)}>
               <Icone nom="telecharger" taille={18} epaisseur={2.4} />&nbsp;Enregistrer sur l’appareil
             </button>

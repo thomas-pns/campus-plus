@@ -722,3 +722,51 @@ a.bouton { text-decoration: none; }
 @keyframes lame { 0% { transform: scaleX(0); } 70% { transform: scaleX(1); } 100% { transform: scaleX(1) scaleY(2.4); filter: brightness(1.4); } }
 .boosters.tranche .booster-haut { animation: none; }
 .boosters.tranche .booster-corps { filter: brightness(1.15); transition: filter .2s; }
+
+/* Planning : petit glissement quand on change de semaine ou de jour au doigt */
+.glissable { display: flex; flex-direction: column; gap: inherit; }
+.glissable.vers-gauche { animation: glisse-gauche .25s ease-out; }
+.glissable.vers-droite { animation: glisse-droite .25s ease-out; }
+@keyframes glisse-gauche { from { transform: translateX(28px); opacity: .4; } to { transform: none; opacity: 1; } }
+@keyframes glisse-droite { from { transform: translateX(-28px); opacity: .4; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .glissable.vers-gauche, .glissable.vers-droite { animation: none; } }
+
+/* Téléphone à l'horizontale (pas les tablettes) : l'appli reste en vertical. iOS ne permet pas de bloquer la rotation d'une appli web. */
+.paysage { display: none; }
+@media (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
+  .paysage { position: absolute; inset: 0; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; background: var(--fond); color: var(--texte); text-align: center; font-family: Inter, -apple-system, system-ui, sans-serif; }
+  .paysage svg { color: var(--lien); animation: pivote 2.4s ease-in-out infinite; }
+  .paysage p { margin: 6px 0 0; font-size: 18px; font-weight: 800; }
+  .paysage span { color: var(--doux); font-size: 14px; }
+  #app { visibility: hidden; }
+}
+@keyframes pivote { 0%, 30% { transform: rotate(90deg); } 60%, 100% { transform: rotate(0); } }
+
+/* ---------- Boutique du BDE (easter egg) ---------- */
+.boutique { position: absolute; inset: 0; z-index: 44; display: flex; flex-direction: column; background: var(--fond); animation: boutique-entree .35s cubic-bezier(.2,.9,.3,1.2); }
+@keyframes boutique-entree { from { transform: translateY(30px) scale(.97); opacity: 0; } to { transform: none; opacity: 1; } }
+.boutique-haut { flex: none; display: flex; align-items: center; justify-content: space-between; padding: calc(6px + var(--haut)) 10px 6px; }
+.boutique-panier { position: relative; width: 40px; height: 40px; display: grid; place-items: center; color: var(--lien); }
+.boutique-panier i { position: absolute; top: 2px; right: 0; min-width: 18px; height: 18px; border-radius: 9px; background: var(--rouge); color: #fff; font-size: 11px; font-weight: 800; font-style: normal; display: grid; place-items: center; }
+.boutique-corps > * { flex-shrink: 0; }
+.boutique-corps { flex: 1; overflow-y: auto; padding: 4px 16px calc(24px + var(--bas)); display: flex; flex-direction: column; gap: 14px; max-width: 900px; width: 100%; margin: 0 auto; }
+.boutique-surtitre { font-size: 13px; font-weight: 700; color: var(--doux); text-transform: uppercase; letter-spacing: .04em; }
+.boutique-corps h1 { font-size: 32px; font-weight: 800; letter-spacing: -0.02em; margin-top: -8px; }
+.boutique-banniere { position: relative; overflow: hidden; border-radius: 24px; padding: 18px; color: #fff; display: flex; flex-direction: column; gap: 6px; background: linear-gradient(135deg, #035899 0%, #6A3CC0 60%, #E05AB8 100%); box-shadow: 0 12px 30px rgba(106, 60, 192, .3); }
+.boutique-banniere::after { content: ""; position: absolute; inset: -40%; background: linear-gradient(115deg, transparent 40%, rgba(255,255,255,.25) 50%, transparent 60%); animation: reflet 3.5s ease-in-out infinite; }
+.boutique-banniere strong { font-size: 18px; line-height: 1.25; }
+.boutique-banniere > span:last-child { font-size: 14px; color: rgba(255,255,255,.85); }
+.boutique-soon { align-self: flex-start; font-size: 13px; font-weight: 800; background: #fff; color: #6A3CC0; padding: 5px 12px; border-radius: 999px; animation: clignote 2s ease-in-out infinite; }
+.boutique-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.article { background: var(--carte); border-radius: 20px; padding: 8px 8px 12px; display: flex; flex-direction: column; gap: 4px; }
+.article-image { position: relative; aspect-ratio: 1; border-radius: 14px; display: grid; place-items: center; margin-bottom: 6px; overflow: hidden; }
+.article-image span { font-size: 54px; filter: drop-shadow(0 6px 10px rgba(0,0,0,.25)); }
+.article-badge { position: absolute; top: 8px; left: 8px; font-style: normal; font-size: 11px; font-weight: 800; background: #fff; color: #DB2777; padding: 3px 8px; border-radius: 999px; }
+.article h2 { font-size: 15px; font-weight: 700; padding: 0 4px; }
+.article p { font-size: 12px; color: var(--doux); padding: 0 4px; line-height: 1.3; }
+.article-bas { display: flex; align-items: center; justify-content: space-between; padding: 6px 4px 0; margin-top: auto; }
+.article-prix { font-weight: 800; color: var(--gris-clair); }
+.article-ajout { width: 34px; height: 34px; border-radius: 17px; display: grid; place-items: center; background: var(--bleu-pale); color: var(--lien); }
+.boutique-pied { text-align: center; }
+.boutique-toast { position: absolute; left: 50%; bottom: calc(24px + var(--bas)); transform: translateX(-50%); padding: 10px 16px; border-radius: 999px; background: rgba(11,18,32,.88); color: #fff; font-size: 14px; font-weight: 600; white-space: nowrap; animation: apparait .2s; }
+@media (prefers-reduced-motion: reduce) { .boutique, .boutique-banniere::after, .boutique-soon { animation: none; } }

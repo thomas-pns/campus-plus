@@ -1,4 +1,4 @@
-import { useState } from 'preact/hooks';
+import { useRef, useState } from 'preact/hooks';
 import type { Donnees, Evenement } from '../types';
 import { ajouterJours, grilleMois, jourEnToutesLettres, moisDecale, jourParis, libelleJour, lundiDe, numeroSemaine, rangDansSemaine } from '../dates';
 import { CATEGORIES, duJour, salleDe, semaineDe, titreDe, type Bloc } from '../planning';
@@ -27,6 +27,12 @@ export function Planning({ d, maintenant, surOuvrir }: Props) {
   const mois = libelleJour(vue === 'mois' ? jour : ajouterJours(lundi, 3), { month: 'long', year: 'numeric' });
   const decaler = (n: number) => setJour(vue === 'jour' ? ajouterJours(jour, n) : vue === 'mois' ? moisDecale(jour, n) : ajouterJours(lundi, 7 * n));
   const pas = vue === 'jour' ? 'Jour' : vue === 'mois' ? 'Mois' : 'Semaine';
+  // Glisser sur la bande des jours : semaine suivante ou précédente (dans la vue jour, même jour de la semaine).
+  const [anim, setAnim] = useState<'' | 'vers-gauche' | 'vers-droite'>('');
+  const animer = (sens: 1 | -1) => { setAnim(''); requestAnimationFrame(() => setAnim(sens > 0 ? 'vers-gauche' : 'vers-droite')); };
+  const glisserJours = useGlisser((sens) => { setJour(ajouterJours(jour, 7 * sens)); animer(sens); });
+  // Glisser sur le contenu : jour, semaine ou mois suivant selon la vue.
+  const glisserContenu = useGlisser((sens) => { decaler(sens); animer(sens); });
   const ailleurs = vue === 'mois' ? jour.slice(0, 7) !== aujourdhui.slice(0, 7) : lundiDe(aujourdhui) !== lundi || (vue === 'jour' && jour !== aujourdhui);
 
   return (
@@ -43,10 +49,11 @@ export function Planning({ d, maintenant, surOuvrir }: Props) {
         ) : null}
       </div>
 
+      <div class={`glissable ${anim}`} onAnimationEnd={() => setAnim('')} {...(vue === 'mois' ? glisserContenu : {})}>
       {vue === 'mois' ? (
         <Mois d={d} jour={jour} aujourdhui={aujourdhui} surChoix={(j) => { setJour(j); setVue('jour'); }} />
       ) : <>
-      <div class={`jours ${vue === 'semaine' ? 'avec-marge' : ''}`} style={{ '--colonnes': semaine.jours.length }}>
+      <div class={`jours ${vue === 'semaine' ? 'avec-marge' : ''}`} style={{ '--colonnes': semaine.jours.length }} {...glisserJours}>
         {semaine.jours.map((j, i) => (
           <button type="button" class={`jour ${j === aujourdhui ? 'aujourdhui' : ''} ${vue === 'jour' && j === jour ? 'choisi' : ''}`}
             onClick={() => { setJour(j); setVue('jour'); }} aria-label={jourEnToutesLettres(j)} aria-current={j === aujourdhui ? 'date' : undefined}>
@@ -57,6 +64,7 @@ export function Planning({ d, maintenant, surOuvrir }: Props) {
         ))}
       </div>
 
+      <div {...glisserContenu}>
       {vue === 'semaine' ? (
         <>
           <Grille semaine={semaine} aujourdhui={aujourdhui} maintenant={maintenant} surOuvrir={surOuvrir} />
@@ -74,9 +82,29 @@ export function Planning({ d, maintenant, surOuvrir }: Props) {
           ) : <Vide icone="calendrier" titre="Pas de cours ce jour-là" />}
         </section>
       )}
+      </div>
       </>}
+      </div>
     </>
   );
+}
+
+/** Glissement horizontal du doigt (gauche : suivant, droite : précédent), sans gêner le défilement vertical. */
+function useGlisser(surGlisser: (sens: 1 | -1) => void) {
+  const depart = useRef<{ x: number; y: number } | null>(null);
+  const rappel = useRef(surGlisser);
+  rappel.current = surGlisser;
+  return {
+    onTouchStart: (e: TouchEvent) => { depart.current = e.touches.length === 1 ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : null; },
+    onTouchEnd: (e: TouchEvent) => {
+      const d = depart.current;
+      depart.current = null;
+      const t = e.changedTouches[0];
+      if (!d || !t) return;
+      const dx = t.clientX - d.x, dy = t.clientY - d.y;
+      if (Math.abs(dx) > 55 && Math.abs(dx) > 1.6 * Math.abs(dy)) rappel.current(dx < 0 ? 1 : -1);
+    },
+  };
 }
 
 /** Vue du mois : une pastille par type de cours dans la journée ; un appui ouvre la journée. */

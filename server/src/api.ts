@@ -390,7 +390,8 @@ export async function creerApp(s: Services): Promise<FastifyInstance> {
       const pdf = garde && maintenant() - garde.t < 600_000 ? garde.pdf : await avecMyCpe(id, (c) => c.certificat(langue));
       certificats.set(`${id}|${langue}`, { pdf, t: garde && garde.pdf === pdf ? garde.t : maintenant() });
       rep.header('Content-Type', 'application/pdf');
-      rep.header('Content-Disposition', `inline; filename="certificat-scolarite-${langue.toLowerCase()}.pdf"`);
+      const telecharger = (req.query as { telecharger?: string }).telecharger === '1';
+      rep.header('Content-Disposition', `${telecharger ? 'attachment' : 'inline'}; filename="certificat-scolarite-${langue.toLowerCase()}.pdf"`);
       rep.header('Cache-Control', 'private, no-store');
       return rep.send(pdf);
     } catch (e) {

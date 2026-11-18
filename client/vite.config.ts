@@ -19,6 +19,7 @@ export default defineConfig({
         lang: 'fr',
         start_url: '/',
         display: 'standalone',
+        orientation: 'portrait',
         background_color: '#F2F4F8',
         theme_color: '#F2F4F8',
         icons: [
