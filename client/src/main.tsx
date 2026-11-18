@@ -20,3 +20,16 @@ appliquerTheme();
 suivreSysteme();
 registerSW({ immediate: true });
 render(<App />, document.getElementById('app')!);
+
+// iOS (appli installée) : après un passage paysage → portrait, la hauteur de l'écran reste parfois l'ancienne
+// et la barre d'onglets remonte. On remesure la vraie hauteur, plusieurs fois car iOS la met à jour en retard.
+function ajusterHauteur(): void {
+  document.documentElement.style.setProperty('--hauteur-app', `${window.innerHeight}px`);
+  if (window.scrollY || document.documentElement.scrollTop) window.scrollTo(0, 0);
+}
+ajusterHauteur();
+window.addEventListener('resize', ajusterHauteur);
+const apresRotation = () => { for (const t of [60, 250, 600, 1200]) setTimeout(ajusterHauteur, t); };
+window.addEventListener('orientationchange', apresRotation);
+screen.orientation?.addEventListener?.('change', apresRotation);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) apresRotation(); });

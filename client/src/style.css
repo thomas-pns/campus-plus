@@ -21,7 +21,7 @@
 .c-neutre { --c: #4A5263; --c-fond: #EEF0F3; }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html, body { touch-action: manipulation; margin: 0; height: 100%; overflow: hidden; overscroll-behavior: none; background: var(--fond); }
+html, body { touch-action: manipulation; margin: 0; height: var(--hauteur-app, 100%); overflow: hidden; overscroll-behavior: none; background: var(--fond); }
 body { font-family: Inter, -apple-system, system-ui, sans-serif; color: var(--texte); font-size: 16px; line-height: 1.35; -webkit-text-size-adjust: 100%; }
 /* Comme une appli : pas de sélection de texte ni de menu « Copier » sur les boutons au moindre appui long. */
 #app { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
@@ -36,7 +36,7 @@ a { color: var(--lien); }
 :focus-visible { outline: 3px solid #6FA8DC; outline-offset: 2px; }
 
 /* Pas de bloc « fixed » plein écran : sur iPhone (iOS 26/27), ça laissait une bande vide en bas. */
-#app { position: relative; height: 100%; display: flex; flex-direction: column; overflow: hidden; }
+#app { position: relative; height: var(--hauteur-app, 100%); display: flex; flex-direction: column; overflow: hidden; }
 .ecran { flex: 1; min-height: 0; min-width: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: contain; -webkit-overflow-scrolling: touch; }
 .contenu { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px;
   padding: calc(18px + var(--haut)) calc(16px + var(--droite)) 28px calc(16px + var(--gauche)); }
