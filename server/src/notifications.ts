@@ -32,6 +32,8 @@ export interface Message {
   titre: string;
   corps: string;
   tag: string;
+  /** Écran à ouvrir quand on touche la notification (par défaut les alertes). */
+  url?: string;
 }
 
 /** Envoi d'un message à un abonnement ; renvoie le code HTTP d'erreur éventuel (404/410 = abonnement mort). */
@@ -51,8 +53,13 @@ export function abonnementValide(a: unknown): a is Abonnement {
 }
 
 /** Ce qu'on envoie pour une série d'alertes. */
-export function messagesPour(alertes: Alerte[]): Message[] {
-  if (alertes.length <= MESSAGES_MAX) return alertes.map((a) => ({ titre: a.titre, corps: a.detail, tag: a.id }));
+export function messagesPour(alertes: Alerte[], boosters = false): Message[] {
+  if (alertes.length <= MESSAGES_MAX) {
+    return alertes.map((a) => (boosters && a.type === 'note'
+      // Mode boosters : la notification ne dit que la matière, la note reste dans le paquet.
+      ? { titre: `🎁 Nouvelle note : ${a.titre.replace(/^Note (publiée|modifiée) : /, '')}`, corps: 'Un booster t’attend. Touche pour l’ouvrir.', tag: a.id, url: '/#booster' }
+      : { titre: a.titre, corps: a.detail, tag: a.id }));
+  }
   return [{ titre: `${alertes.length} changements détectés`, corps: alertes.slice(0, 3).map((a) => a.titre).join(' · '), tag: 'resume' }];
 }
 
@@ -139,7 +146,8 @@ export class Notifications {
   /** Appelé par la synchro avec les alertes qui viennent d'apparaître. */
   async alertes(id: string, alertes: Alerte[]): Promise<void> {
     const { types } = await this.reglages(id);
-    await this.envoyer(id, messagesPour(alertes.filter((a) => types[a.type])));
+    const preferences = (await this.depot.lire<Record<string, unknown>>(id, 'preferences')) ?? {};
+    await this.envoyer(id, messagesPour(alertes.filter((a) => types[a.type]), preferences.cacherNote === true));
   }
 }
 

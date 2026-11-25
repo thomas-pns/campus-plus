@@ -24,6 +24,14 @@ describe('messages', () => {
     expect(messagesPour([1, 2, 3, 4, 5].map((i) => alerte(i)))).toEqual([{ titre: '5 changements détectés', corps: 'Titre 1 · Titre 2 · Titre 3', tag: 'resume' }]);
     expect(messagesPour([])).toEqual([]);
   });
+
+  it('mode boosters : la note ne figure pas dans la notification, qui ouvre le booster', () => {
+    const note: Alerte = { id: 'n1', type: 'note', date: '2026-11-10T12:00:00Z', titre: 'Note publiée : Algèbre linéaire', detail: 'Écrit 2 : 14,5/20' };
+    const [m] = messagesPour([note], true);
+    expect(m).toEqual({ titre: '🎁 Nouvelle note : Algèbre linéaire', corps: 'Un booster t’attend. Touche pour l’ouvrir.', tag: 'n1', url: '/#booster' });
+    expect(JSON.stringify(m)).not.toMatch(/14/);
+    expect(messagesPour([note])[0].corps).toBe('Écrit 2 : 14,5/20');
+  });
 });
 
 describe('notifications de bout en bout (faux WebAurion, faux service push)', () => {

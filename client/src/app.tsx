@@ -12,6 +12,8 @@ import { Alertes } from './ecrans/alertes';
 import { Reglages } from './ecrans/reglages';
 import { Visite, visiteAFaire } from './ecrans/visite';
 import { Boutique } from './ecrans/boutique';
+import { Boosters, notesAOuvrir } from './ecrans/boosters';
+import type { Note } from './types';
 import { Connexion } from './ecrans/connexion';
 import { CoursEcran } from './ecrans/cours';
 import { fichiersDe } from './cours';
@@ -51,6 +53,24 @@ export function App() {
   const [horsLigne, setHorsLigne] = useState(false);
   // Ouverture depuis une notification : l'adresse se termine par #alertes.
   const [onglet, setOnglet] = useState<Onglet>(() => (location.hash === '#alertes' ? 'alertes' : 'aujourdhui'));
+  // Notification « nouvelle note » en mode boosters : l'adresse se termine par #booster, on ouvre le paquet directement.
+  const boosterDemande = useRef(location.hash === '#booster');
+  const [boostersOuverts, setBoostersOuverts] = useState<Note[] | null>(null);
+  const [ticBooster, setTicBooster] = useState(0);
+  useEffect(() => {
+    if (!boosterDemande.current || !donnees) return;
+    const aOuvrir = notesAOuvrir(donnees.notes);
+    if (aOuvrir.length) {
+      boosterDemande.current = false;
+      setBoostersOuverts(aOuvrir);
+    }
+  }, [donnees, ticBooster]);
+  // La copie locale peut précéder la nouvelle note : on attend les données fraîches, mais pas indéfiniment.
+  useEffect(() => {
+    if (!boosterDemande.current) return;
+    const t = setTimeout(() => { boosterDemande.current = false; }, 30_000);
+    return () => clearTimeout(t);
+  }, [ticBooster]);
   /** Page ouverte par-dessus les onglets (depuis Aujourd'hui). */
   const [page, setPage] = useState<'reglages' | 'devoirs' | null>(null);
   const reglages = page === 'reglages';
@@ -168,9 +188,16 @@ export function App() {
   useEffect(() => {
     if (location.hash) history.replaceState(null, '', location.pathname);
     const recu = (ev: MessageEvent) => {
-      if (ev.data?.type !== 'ouvrir-alertes') return;
+      if (ev.data?.type !== 'ouvrir-alertes' && ev.data?.type !== 'ouvrir-booster') return;
       setReglages(false);
       setFiche(null);
+      if (ev.data.type === 'ouvrir-booster') {
+        setPage(null);
+        setOnglet('aujourdhui');
+        boosterDemande.current = true;
+        void recharger().then(() => setTicBooster((t) => t + 1));
+        return;
+      }
       setOnglet('alertes');
       void recharger();
     };
@@ -216,6 +243,7 @@ export function App() {
   const d = donnees;
   retenirPlanning(d.planning);
   const nouvelles = d.alertes.filter((a) => a.date > vuesJusqua).length;
+  const ouvrirBoosters = () => { const n = notesAOuvrir(d.notes); if (n.length) setBoostersOuverts(n); };
 
   return (
     <>
@@ -251,9 +279,9 @@ export function App() {
         ) : onglet === 'alertes' ? (
           <Alertes d={d} maintenant={maintenant} vuesJusqua={vuesJusqua} surOuvrir={setFiche} surAller={choisir} surOuvrirCours={ouvrirCours}
             surDevoirs={() => { setOnglet('aujourdhui'); setPage('devoirs'); }}
-            horsLigne={horsLigne} surChangeMails={changerMails} surCreerDevoir={devoirDepuisMail} />
+            horsLigne={horsLigne} surChangeMails={changerMails} surCreerDevoir={devoirDepuisMail} surBoosters={ouvrirBoosters} />
         ) : (
-          <Scolarite d={d} horsLigne={horsLigne} />
+          <Scolarite d={d} horsLigne={horsLigne} surBoosters={ouvrirBoosters} />
         )}
       </Defilement>
 
@@ -274,6 +302,7 @@ export function App() {
         </button>
       </nav>
 
+      {boostersOuverts && <Boosters notes={boostersOuverts} surFin={() => setBoostersOuverts(null)} />}
       {boutique && <Boutique surFermer={() => setBoutique(false)} />}
       {visite && <Visite surFin={() => setVisite(false)} surAller={(o) => { setPage(null); choisir(o); }} />}
       {fiche && <FicheEvenement e={fiche} planning={d.planning} surFermer={fermerFiche} surAjouterDevoir={d.afaire && !horsLigne ? devoirDepuisCreneau : undefined} />}

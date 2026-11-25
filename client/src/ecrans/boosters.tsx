@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { Icone } from '../composants';
 import { createPortal } from 'preact/compat';
 import type { Note } from '../types';
+import { lirePreferences } from '../preferences';
 
 const CLE = 'campus-plus:notes-ouvertes';
 
@@ -31,6 +32,17 @@ export function notesOuvertes(notes: Note[]): Set<string> {
     return new Set(notes.map(cleNote));
   }
 }
+
+/** Notes encore dans leur booster (mode boosters actif) : à ne montrer nulle part avant l'ouverture. */
+export function notesAOuvrir(notes: Note[]): Note[] {
+  if (!lirePreferences().cacherNote) return [];
+  const ouvertes = notesOuvertes(notes);
+  return notes.filter((n) => n.note !== null && !ouvertes.has(cleNote(n)));
+}
+
+/** Une alerte « note » qui parle d'une note encore dans son booster. */
+export const alerteCachee = (a: { type: string; titre: string; detail: string }, aOuvrir: Note[]) =>
+  a.type === 'note' && aOuvrir.some((n) => a.titre.endsWith(n.cours) && a.detail.startsWith(`${n.epreuve} :`));
 
 export function marquerOuverte(n: Note): void {
   try {

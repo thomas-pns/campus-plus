@@ -1,5 +1,6 @@
 import { useState } from 'preact/hooks';
 import type { Donnees, Note } from '../types';
+import { cleNote, notesAOuvrir } from './boosters';
 import { Entete, Icone, Segments, Vide, type NomIcone } from '../composants';
 import { Lecteur } from './lecteur';
 import { brouillonDepuis, Justificatif, type Brouillon } from './justificatif';
@@ -28,7 +29,7 @@ function grouper<T>(elements: T[], cle: (e: T) => string): [string, T[]][] {
   return [...groupes];
 }
 
-export function Scolarite({ d, horsLigne }: { d: Donnees; horsLigne?: boolean }) {
+export function Scolarite({ d, horsLigne, surBoosters }: { d: Donnees; horsLigne?: boolean; surBoosters?: () => void }) {
   const [rubrique, setRubrique] = useState<Rubrique>('notes');
   const [certificat, setCertificat] = useState<'FR' | 'EN' | null>(null);
   const [justif, setJustif] = useState<Brouillon | null>(null);
@@ -42,7 +43,11 @@ export function Scolarite({ d, horsLigne }: { d: Donnees; horsLigne?: boolean })
     if (rep.ok) setRepartitions((await rep.json()).repartitions ?? {});
   };
   const publiees = d.notes.filter((n) => n.note !== null).length;
-  const semestres = grouper(d.notes, (n) => n.semestre);
+  // Mode boosters : une note pas encore ouverte reste cachée ici (et la moyenne du cours aussi).
+  const aOuvrir = notesAOuvrir(d.notes);
+  const cachees = new Set(aOuvrir.map(cleNote));
+  const notesVisibles = d.notes.map((n) => (cachees.has(cleNote(n)) ? { ...n, note: null, cachee: true } : n));
+  const semestres = grouper(notesVisibles, (n) => n.semestre);
 
   return (
     <>
@@ -106,20 +111,29 @@ export function Scolarite({ d, horsLigne }: { d: Donnees; horsLigne?: boolean })
         </section>
         </>
       ) : rubrique === 'notes' ? (
-        d.notes.length ? semestres.map(([semestre, notes]) => (
+        <>
+        {aOuvrir.length > 0 && surBoosters && (
+          <button type="button" class="bandeau-booster" onClick={surBoosters}>
+            <span aria-hidden="true">🎁</span>
+            <span><strong>{aOuvrir.length > 1 ? `${aOuvrir.length} nouvelles notes` : 'Une nouvelle note'}</strong>Ouvre {aOuvrir.length > 1 ? 'les boosters' : 'le booster'} pour {aOuvrir.length > 1 ? 'les' : 'la'} découvrir</span>
+            <Icone nom="droite" taille={14} epaisseur={2.4} />
+          </button>
+        )}
+        {d.notes.length ? semestres.map(([semestre, notes]) => (
           <div>
             {semestres.length > 1 && <h2 class="titre-bloc semestre">{semestre}</h2>}
             {grouper(notes, (n) => n.module).map(([module, duModule]) => (
               <section class="bloc">
                 <h3 class="titre-groupe">{module || 'Autres'}</h3>
                 {grouper(duModule, (n) => n.cours).map(([cours, epreuves]) => (
-                  <CarteCours cours={cours} epreuves={epreuves} moyenne={d.moyennes.find((m) => m.semestre === semestre && m.module === module && m.cours === cours)?.moyenne ?? null}
+                  <CarteCours cours={cours} epreuves={epreuves} moyenne={epreuves.some((n) => 'cachee' in n) ? null : d.moyennes.find((m) => m.semestre === semestre && m.module === module && m.cours === cours)?.moyenne ?? null}
                     repartition={repartitions[cours]} surSimuler={() => setSimule({ cours, epreuves })} />
                 ))}
               </section>
             ))}
           </div>
-        )) : <Vide icone="note" titre="Aucune note pour l'instant" texte="Elles apparaîtront ici dès leur publication sur MyCPE." />
+        )) : <Vide icone="note" titre="Aucune note pour l'instant" texte="Elles apparaîtront ici dès leur publication sur MyCPE." />}
+        </>
       ) : d.absences.length ? (
         <section class="bloc">
           <button type="button" class="bouton secondaire large" disabled={horsLigne} onClick={() => setJustif(brouillonDepuis())}>Justifier une absence</button>
@@ -161,7 +175,7 @@ function CarteCours({ cours, epreuves, moyenne, repartition, surSimuler }: { cou
               <strong>{n.epreuve}</strong>
               <span>{n.coefficient !== null ? `Coefficient ${fr(n.coefficient)}` : 'Sans coefficient'}{n.motifAbsence ? ` · ${n.motifAbsence}` : ''}</span>
             </span>
-            {n.note !== null ? <span class={`valeur-note ${n.note < 10 ? 'basse' : ''}`}>{fr(n.note)}</span> : <span class="valeur-note attente">—</span>}
+            {'cachee' in n ? <span class="valeur-note cadeau" aria-label="Note dans un booster">🎁</span> : n.note !== null ? <span class={`valeur-note ${n.note < 10 ? 'basse' : ''}`}>{fr(n.note)}</span> : <span class="valeur-note attente">—</span>}
           </div>
           {n.note !== null && (
             <div class="jauge" role="img" aria-label={`${fr(n.note)} sur 20`}>

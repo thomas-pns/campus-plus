@@ -777,3 +777,10 @@ a.bouton { text-decoration: none; }
   .onglets .actualiser-pc { display: flex; margin-top: auto; color: var(--doux); }
   .onglets .actualiser-pc kbd { margin-left: auto; font: 600 11px Inter, system-ui, sans-serif; color: var(--doux); background: var(--gris); border-radius: 6px; padding: 2px 6px; }
 }
+
+/* Mode boosters : notes pas encore ouvertes */
+.valeur-note.cadeau { font-size: 22px; }
+.bandeau-booster { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 14px 16px; border-radius: 20px; color: #fff; background: linear-gradient(135deg, #2C6FB0, #6A3CC0); box-shadow: 0 8px 22px rgba(106, 60, 192, .25); }
+.bandeau-booster > span:first-child { font-size: 28px; }
+.bandeau-booster > span:nth-child(2) { flex: 1; display: flex; flex-direction: column; font-size: 14px; color: rgba(255,255,255,.85); }
+.bandeau-booster strong { font-size: 16px; color: #fff; }

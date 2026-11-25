@@ -1,6 +1,7 @@
 import type { Alerte, Donnees, Evenement } from '../types';
 import { ilYA } from '../dates';
 import { useState } from 'preact/hooks';
+import { alerteCachee, notesAOuvrir } from './boosters';
 import { Entete, Icone, Segments, Vide, type NomIcone } from '../composants';
 import { Mails } from './mails';
 import type { Mail } from '../types';
@@ -29,11 +30,13 @@ interface Props {
   horsLigne: boolean;
   surChangeMails: (m: NonNullable<Donnees['mails']>) => void;
   surCreerDevoir: (m: Mail) => void;
+  surBoosters?: () => void;
 }
 
 const RUBRIQUES = [{ id: 'alertes', nom: 'Alertes' }, { id: 'mails', nom: 'Mails' }] as const;
 
-export function Alertes({ d, maintenant, vuesJusqua, surOuvrir, surAller, surOuvrirCours, surDevoirs, horsLigne, surChangeMails, surCreerDevoir }: Props) {
+export function Alertes({ d, maintenant, vuesJusqua, surOuvrir, surAller, surOuvrirCours, surDevoirs, horsLigne, surChangeMails, surCreerDevoir, surBoosters }: Props) {
+  const aOuvrir = notesAOuvrir(d.notes);
   // Ouverte depuis les réglages (« Mails PARTAGE triés ») : directement sur les mails.
   const [rubrique, setRubrique] = useState<'alertes' | 'mails'>(() => {
     try { if (sessionStorage.getItem('campus-plus:boite') === 'mails') { sessionStorage.removeItem('campus-plus:boite'); return 'mails'; } } catch { /* rien */ }
@@ -49,8 +52,9 @@ export function Alertes({ d, maintenant, vuesJusqua, surOuvrir, surAller, surOuv
         <div class="liste-alertes">
           {d.alertes.map((a) => {
             const t = TYPES[a.type];
+            const cachee = alerteCachee(a, aOuvrir);
             const evenement = a.cleEvenement ? d.planning.find((e) => e.cle === a.cleEvenement) : undefined;
-            const action = a.type === 'note' ? () => surAller('scolarite')
+            const action = cachee && surBoosters ? surBoosters : a.type === 'note' ? () => surAller('scolarite')
               : a.type === 'mail' ? () => setRubrique('mails')
               : a.type === 'devoir' ? surDevoirs
               : a.type === 'fichier' && a.cours !== undefined ? () => surOuvrirCours(a.cours!)
@@ -62,8 +66,8 @@ export function Alertes({ d, maintenant, vuesJusqua, surOuvrir, surAller, surOuv
                   <span class="alerte-date">{ilYA(maintenant - Date.parse(a.date))}</span>
                 </div>
                 <h2>{a.titre}</h2>
-                <p>{a.detail}</p>
-                {action && <button type="button" class="bouton petit" onClick={action}>{a.type === 'note' ? 'Voir mes notes' : a.type === 'fichier' ? 'Ouvrir le cours' : a.type === 'devoir' ? 'Voir mes devoirs' : a.type === 'mail' ? 'Voir les mails' : 'Voir le créneau'}</button>}
+                <p>{cachee ? 'Elle t’attend dans un booster 🎁' : a.detail}</p>
+                {action && <button type="button" class="bouton petit" onClick={action}>{cachee ? 'Ouvrir le booster' : a.type === 'note' ? 'Voir mes notes' : a.type === 'fichier' ? 'Ouvrir le cours' : a.type === 'devoir' ? 'Voir mes devoirs' : a.type === 'mail' ? 'Voir les mails' : 'Voir le créneau'}</button>}
               </article>
             );
           })}
